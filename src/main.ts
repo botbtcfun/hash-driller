@@ -17,6 +17,9 @@ import { touchControls } from './ui/touch';
 
 const WIDTH_PX = WIDTH * TILE;
 const MIN_HEIGHT_PX = MIN_VIEW_ROWS * TILE;
+/** Tiles stop growing at 56 px, for tablets; landscape phones show at least LANDSCAPE_ROWS rows. */
+const MAX_TOUCH_ZOOM = 3.5;
+const LANDSCAPE_ROWS = 12;
 /** The UTC day: one mine per day, the same for everyone. */
 const day = Math.floor(Date.now() / 86_400_000);
 
@@ -139,24 +142,40 @@ function sideBySide(): boolean {
   return isTouch() ? w > h : w > 640;
 }
 
+/** The safe areas' insets in CSS pixels, read from a probe padded by them. */
+function safeArea(): { top: number; right: number; bottom: number; left: number } {
+  const s = getComputedStyle(document.getElementById('safe')!);
+  const px = (v: string) => Math.round(parseFloat(v) || 0);
+  return { top: px(s.paddingTop), right: px(s.paddingRight), bottom: px(s.paddingBottom), left: px(s.paddingLeft) };
+}
+
 /**
- * The zoom that fits MIN_VIEW_ROWS rows, and the playfield's height at that
- * zoom: the rest of the height shows more of the shaft below the bot. Zoom is
- * a whole number on desktops, so pixels stay square; touch screens are dense
- * enough to hide uneven pixels, so there it fills the space.
+ * The zoom, and the playfield's height in game pixels. On touch screens the
+ * shaft is the screen: in portrait as wide and as tall as it, with the strip
+ * and the controls floating over it; in landscape as tall as it, between the
+ * d-pad and the strip. Zoom there is fractional, as phones are dense enough
+ * to hide uneven pixels. On desktops it is a whole number, so pixels stay
+ * square, fitting MIN_VIEW_ROWS rows, and the rest of the height shows more
+ * of the shaft below the bot.
  */
 function fit(): { zoom: number; height: number } {
-  const hud = document.getElementById('hud')!;
   const view = viewport();
-  const touch = isTouch();
+  const floor2 = (z: number) => Math.max(0.5, Math.floor(z * 100) / 100);
+  if (isTouch()) {
+    if (view.h >= view.w) {
+      const zoom = floor2(Math.min(view.w / WIDTH_PX, MAX_TOUCH_ZOOM));
+      return { zoom, height: Math.ceil(view.h / zoom) };
+    }
+    const safe = safeArea();
+    const side = Math.max(document.getElementById('dpad')!.offsetWidth, 190);
+    const w = view.w - 2 * side - 2 * 12 - Math.max(12, safe.left) - Math.max(12, safe.right);
+    const zoom = floor2(Math.min(view.h / (LANDSCAPE_ROWS * TILE), w / WIDTH_PX, MAX_TOUCH_ZOOM));
+    return { zoom, height: Math.ceil(view.h / zoom) };
+  }
+  const hud = document.getElementById('hud')!;
   let w: number;
   let h: number;
-  if (touch) {
-    // The slot is what the panel and the controls leave; less the stage's border.
-    const slot = document.getElementById('slot')!;
-    w = slot.clientWidth - 8;
-    h = slot.clientHeight - 8;
-  } else if (!sideBySide()) {
+  if (!sideBySide()) {
     w = view.w - 16 - 8;
     h = view.h - 16 - 8 - 8 - hud.offsetHeight;
   } else {
@@ -164,12 +183,15 @@ function fit(): { zoom: number; height: number } {
     w = view.w - 32 - 8 - 16 - hud.offsetWidth;
     h = view.h - 32 - 8;
   }
-  const fitted = Math.min(w / WIDTH_PX, h / MIN_HEIGHT_PX);
-  const zoom = touch ? Math.max(0.5, Math.floor(fitted * 100) / 100) : Math.max(1, Math.floor(fitted));
+  const zoom = Math.max(1, Math.floor(Math.min(w / WIDTH_PX, h / MIN_HEIGHT_PX)));
   return { zoom, height: Math.max(MIN_HEIGHT_PX, Math.floor(h / zoom)) };
 }
 
-/** Sizes the playfield to the window, and the sidebar to the playfield. */
+/**
+ * Sizes the playfield to the window. On touch screens, tells the scene how
+ * much the strip and the controls cover; on desktops, sizes the sidebar to
+ * the playfield.
+ */
 function layout(): void {
   orient();
   const hud = document.getElementById('hud')!;
@@ -177,7 +199,40 @@ function layout(): void {
   const { zoom, height } = fit();
   game.scale.resize(WIDTH_PX, height);
   game.scale.setZoom(zoom);
-  if (sideBySide()) hud.style.height = `${document.getElementById('stage')!.offsetHeight}px`;
+  if (isTouch()) {
+    const portrait = document.body.classList.contains('portrait');
+    const strip = portrait ? document.getElementById('strip')!.offsetHeight : 0;
+    const keysTop = Math.min(document.getElementById('dpad')!.getBoundingClientRect().top, document.querySelector('.actions')!.getBoundingClientRect().top);
+    const pad = portrait ? Math.max(0, viewport().h - keysTop) : 0;
+    document.documentElement.style.setProperty('--strip-h', `${strip}px`);
+    scene.setInsets(strip / zoom, pad / zoom, true);
+  } else {
+    scene.setInsets(0, 0, false);
+    if (sideBySide()) hud.style.height = `${document.getElementById('stage')!.offsetHeight}px`;
+  }
+}
+
+// ?debug shows what the browser reports about the screen, for tuning layouts on a phone.
+if (new URLSearchParams(window.location.search).has('debug')) {
+  const box = document.createElement('div');
+  box.className = 'debug';
+  document.body.append(box);
+  const show = () => {
+    const v = window.visualViewport;
+    const s = safeArea();
+    const keys = document.getElementById('dpad')!.getBoundingClientRect();
+    box.textContent = [
+      `inner ${window.innerWidth}x${window.innerHeight}`,
+      `client ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
+      v ? `visual ${Math.round(v.width)}x${Math.round(v.height)} @${v.scale.toFixed(2)} top ${Math.round(v.offsetTop)}` : 'visual -',
+      `screen ${window.screen.width}x${window.screen.height} dpr ${window.devicePixelRatio}`,
+      `safe t${s.top} r${s.right} b${s.bottom} l${s.left}`,
+      `zoom ${game.scale.zoom.toFixed(2)} game ${WIDTH_PX}x${game.scale.height}`,
+      `dpad top ${Math.round(keys.top)} bottom ${Math.round(keys.bottom)}`,
+      document.body.className,
+    ].join('\n');
+  };
+  setInterval(show, 500);
 }
 
 // Rotation, the browser's bars sliding in and out, and zoom all resize: lay out once a frame at most.
@@ -227,7 +282,18 @@ for (const id of ['sound', 'sound-pad']) {
 }
 
 function intro(): void {
-  const controls = isTouch() ? 'D-pad: move and dig · JUMP: hop onto a step' : '← → ↓ ↑ move and dig · SPACE jump';
+  if (isTouch()) {
+    // A phone gets the short version: the shaft says the rest as you play.
+    hud.overlay(`<h2>HASH DRILLER</h2>
+<p class="how">Dig down. Every level has one golden <b>#</b>:<br>touch it to mine the level.</p>
+<p class="how">Orange coins are fees: the <b>#</b> pays them out.<br>Mine levels in a row to grow your chain.</p>
+<p class="how">Power drains: grab <b>⚡</b>. A red <b>!</b> means<br>something above you is about to fall.</p>
+<p class="how">D-pad: move and dig · JUMP: hop up a step</p>
+<p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
+<p class="blink">TAP TO START</p>`);
+    return;
+  }
+  const controls = '← → ↓ ↑ move and dig · SPACE jump';
   hud.overlay(`<h2>HASH DRILLER</h2>
 <p class="how">Dig down level by level. Every level has<br>one golden <b>#</b>: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
 <p class="how">Grab the orange coins: they're fees,<br>and the <b>#</b> pays them out with the level.</p>
@@ -235,7 +301,7 @@ function intro(): void {
 <p class="how">Power drains: grab <b>⚡</b> cells.<br>Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or dig it away with ↑ just in time.</p>
 <p class="how">${controls}</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
-<p class="blink">${isTouch() ? 'TAP TO START' : 'PRESS ANY KEY'}</p>`);
+<p class="blink">PRESS ANY KEY</p>`);
 }
 intro();
 // The game is up: the loading screen goes, and the music renders while the intro is read.

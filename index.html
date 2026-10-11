@@ -49,6 +49,14 @@
         <p class="keys">← → move, or dig what's there<br />↓ dig down · ↑ dig up<br />SPACE jump onto a step<br />P pause · R restart · M sound</p>
         <button id="sound" class="sound" type="button" aria-pressed="true">SOUND ON</button>
       </aside>
+      <div id="strip" class="strip">
+        <div class="strip-row">
+          <p class="strip-sats"><span id="s-sats">0</span><span id="s-fees" class="strip-fees">NO FEES YET</span></p>
+          <p class="strip-mid"><span id="s-level">LEVEL -</span><br /><span id="s-chain">NO CHAIN</span></p>
+          <p id="s-lives" class="strip-lives"></p>
+        </div>
+        <span class="bar"><span id="s-power"></span></span>
+      </div>
       <div id="pad" class="pad">
         <div id="dpad" class="dpad">
           <span class="key up" data-dir="up"><svg viewBox="0 0 10 10"><path d="M5 2 9 8H1z" /></svg></span>
@@ -67,6 +75,7 @@
         </div>
       </div>
     </main>
+    <div id="safe" class="safe-probe"></div>
     <script src="/loader.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>

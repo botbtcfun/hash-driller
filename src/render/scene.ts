@@ -51,6 +51,12 @@ export class PlayScene extends Phaser.Scene {
   private starAt = 0;
   private acc = 0;
   private viewY = 0;
+  /** Game pixels hidden under the strip and the controls on touch screens. */
+  private insetTop = 0;
+  private insetBottom = 0;
+  /** What the nonce pays, floating over it, where there's no panel to say so. */
+  private priceText!: Phaser.GameObjects.Text;
+  private showPrice = false;
 
   constructor(
     private readonly session: Session,
@@ -109,7 +115,24 @@ export class PlayScene extends Phaser.Scene {
       .setScrollFactor(0)
       .setDepth(DEPTH.arrow)
       .setVisible(false);
+    this.priceText = this.add
+      .text(0, 0, '', { fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#ffd60a', backgroundColor: '#00081c', padding: { x: 2, y: 1 } })
+      .setOrigin(0.5, 1)
+      .setDepth(DEPTH.float)
+      .setVisible(false);
     this.cameras.main.setRoundPixels(true);
+  }
+
+  /**
+   * How much of the playfield the strip and the controls cover, in game
+   * pixels: the camera keeps the bot below the strip, and the nonce arrow
+   * points from the edge of what is uncovered. With a price, the nonce shows
+   * what it pays.
+   */
+  setInsets(top: number, bottom: number, price: boolean): void {
+    this.insetTop = top;
+    this.insetBottom = bottom;
+    this.showPrice = price;
   }
 
   override update(_time: number, delta: number): void {
@@ -153,7 +176,7 @@ export class PlayScene extends Phaser.Scene {
     const bx = (bot.fromX + (bot.x - bot.fromX) * px) * TILE;
     const by = (bot.fromY + (bot.y - bot.fromY) * py) * TILE;
 
-    const target = Math.max(0, by - BOT_ROW * TILE);
+    const target = Math.max(-this.insetTop, by - BOT_ROW * TILE - this.insetTop);
     this.viewY += (target - this.viewY) * 0.18;
     if (Math.abs(target - this.viewY) < 0.5) this.viewY = target;
     const cam = this.cameras.main;
@@ -193,6 +216,7 @@ export class PlayScene extends Phaser.Scene {
     }
     for (; n < this.cells.length; n++) this.cells[n]!.setVisible(false);
     this.shine(game, nonceAt);
+    this.price(game, nonceAt);
 
     this.labelBlocks(game, first);
     this.pointAtNonce(game, by);
@@ -319,9 +343,9 @@ export class PlayScene extends Phaser.Scene {
   /** An arrow at the edge of the view toward the nonce, with how far it is. */
   private pointAtNonce(game: Game, botY: number): void {
     const found = game.nonce();
-    const { height } = this.scale;
-    const top = this.viewY;
-    if (!found || (found[1] * TILE >= top && found[1] * TILE + TILE <= top + height)) {
+    const height = this.scale.height - this.insetBottom;
+    const top = this.viewY + this.insetTop;
+    if (!found || (found[1] * TILE >= top && found[1] * TILE + TILE <= this.viewY + height)) {
       this.arrow.setVisible(false);
       this.arrowText.setVisible(false);
       return;
@@ -330,13 +354,26 @@ export class PlayScene extends Phaser.Scene {
     const bob = (game.tick >> 3) & 1;
     const x = Phaser.Math.Clamp(found[0] * TILE + 8, 6, WIDTH * TILE - 6);
     this.arrow
-      .setPosition(x, below ? height - 4 - bob : 4 + bob)
+      .setPosition(x, below ? height - 4 - bob : this.insetTop + 4 + bob)
       .setFlipY(!below)
       .setVisible(true);
     this.arrowText
       .setText(`${Math.abs(Math.round(found[1] - botY / TILE))}m`)
-      .setPosition(Phaser.Math.Clamp(x, 14, WIDTH * TILE - 14), below ? height - 14 : 14)
+      .setPosition(Phaser.Math.Clamp(x, 14, WIDTH * TILE - 14), below ? height - 14 : this.insetTop + 14)
       .setVisible(true);
+  }
+
+  /** "62K" over the nonce, while it is in the open: what mining it pays now. Otherwise the arrow points to it. */
+  private price(game: Game, at: [number, number] | null): void {
+    const open = at && at[1] - 8 >= this.viewY + this.insetTop && at[1] + 8 <= this.viewY + this.scale.height - this.insetBottom;
+    if (!this.showPrice || !at || !open) {
+      this.priceText.setVisible(false);
+      return;
+    }
+    const n = game.nonceReward;
+    const text = n >= 1e6 ? `${(n / 1e6).toFixed(n >= 1e7 ? 0 : 1)}M` : `${Math.round(n / 1000)}K`;
+    if (this.priceText.text !== text) this.priceText.setText(text);
+    this.priceText.setPosition(Math.round(at[0]), Math.round(at[1]) - 10).setVisible(true);
   }
 
   private effects(events: GameEvent[]): void {

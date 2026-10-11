@@ -23,8 +23,11 @@ block's nonce. Made for Round 01 (games) of
 | R | Restart |
 | M | Sound on or off |
 
-On phones and tablets the game shows a d-pad you can slide a thumb across, a
-JUMP button, and pause and sound buttons, laid out for portrait or landscape.
+On phones and tablets the shaft fills the screen. A strip with your sats,
+level, chain, lives and power floats over the top, and a d-pad you can slide a
+thumb across, a JUMP button, and pause and sound buttons float over the
+bottom. In landscape they sit either side of the shaft. Add `?debug` to the
+address to see what the browser reports about the screen.
 
 ## Run it
 

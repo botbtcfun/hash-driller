@@ -18,6 +18,16 @@ export class Hud {
     this.shown = state;
     $('goal').innerHTML = goal;
     $('level').textContent = game.layer ? `${game.layer}` : '-';
+    // The strip, on touch screens.
+    $('s-sats').textContent = sats(game.sats);
+    $('s-fees').textContent = game.pending ? `+${sats(game.pending)} IN FEES` : 'NO FEES YET';
+    $('s-level').textContent = `LEVEL ${game.layer || '-'}`;
+    $('s-chain').textContent = game.chain ? `CHAIN ×${game.chain}` : 'NO CHAIN';
+    const lives = $('s-lives');
+    if (lives.childElementCount !== Math.max(0, game.lives)) lives.replaceChildren(...Array.from({ length: Math.max(0, game.lives) }, () => document.createElement('i')));
+    const strip = $('s-power');
+    strip.style.width = `${power}%`;
+    strip.classList.toggle('low', power <= 25);
     $('depth').textContent = `${game.depth} m`;
     $('sats').textContent = sats(game.sats);
     const bar = $('power');
