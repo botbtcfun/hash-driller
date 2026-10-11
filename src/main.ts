@@ -20,6 +20,8 @@ const MIN_HEIGHT_PX = MIN_VIEW_ROWS * TILE;
 /** Tiles stop growing at 56 px, for tablets; landscape phones show at least LANDSCAPE_ROWS rows. */
 const MAX_TOUCH_ZOOM = 3.5;
 const LANDSCAPE_ROWS = 12;
+/** How far up from the bottom of an iPhone's screen Safari's floating bar reaches, with a little room. */
+const IOS_BAR_PX = 96;
 /** The UTC day: one mine per day, the same for everyone. */
 const day = Math.floor(Date.now() / 86_400_000);
 
@@ -127,11 +129,23 @@ function iosBar(): boolean {
   return /iPhone|iPod/.test(ua) && /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua) && !(navigator as Navigator & { standalone?: boolean }).standalone;
 }
 
+/**
+ * How much of the bottom of the page Safari's floating bar covers: the bar
+ * reaches IOS_BAR_PX up from the bottom of the screen, and the page may end
+ * above part or all of it.
+ */
+function barCover(): number {
+  const v = window.visualViewport;
+  const bottom = v ? v.offsetTop + v.height : window.innerHeight;
+  return Math.max(0, Math.round(IOS_BAR_PX - (window.screen.height - bottom)));
+}
+
 function orient(): void {
   const { w, h } = viewport();
   document.body.classList.toggle('portrait', h >= w);
   document.body.classList.toggle('landscape', h < w);
   document.body.classList.toggle('ios-bar', iosBar());
+  document.documentElement.style.setProperty('--bar', `${barCover()}px`);
   // The page fills exactly the visible height, between the browser's bars.
   document.documentElement.style.setProperty('--vh', `${h}px`);
 }
@@ -226,7 +240,7 @@ if (new URLSearchParams(window.location.search).has('debug')) {
       `client ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}`,
       v ? `visual ${Math.round(v.width)}x${Math.round(v.height)} @${v.scale.toFixed(2)} top ${Math.round(v.offsetTop)}` : 'visual -',
       `screen ${window.screen.width}x${window.screen.height} dpr ${window.devicePixelRatio}`,
-      `safe t${s.top} r${s.right} b${s.bottom} l${s.left}`,
+      `safe t${s.top} r${s.right} b${s.bottom} l${s.left} bar ${barCover()}`,
       `zoom ${game.scale.zoom.toFixed(2)} game ${WIDTH_PX}x${game.scale.height}`,
       `dpad top ${Math.round(keys.top)} bottom ${Math.round(keys.bottom)}`,
       document.body.className,

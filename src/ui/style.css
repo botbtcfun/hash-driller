@@ -498,10 +498,11 @@ body.touch .pad .actions {
   pointer-events: auto;
 }
 
-/* Safari on iPhone floats its address bar over the bottom of the page, and
-   counts none of it in the safe area: keep the controls clear of it. */
+/* Safari on iPhone floats its address bar over the bottom of the screen.
+   Sometimes it ends the page above the bar, sometimes behind it: --bar is
+   what the page still needs to keep clear, worked out in main.ts. */
 body.touch.portrait.ios-bar .pad {
-  padding-bottom: max(calc(env(safe-area-inset-bottom) + 30px), 96px);
+  padding-bottom: max(calc(env(safe-area-inset-bottom) + 12px), var(--bar, 96px));
 }
 
 .key {
