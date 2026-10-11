@@ -2,6 +2,8 @@ import type { Game, GameEvent } from '../sim/game';
 import { MAX_CHAIN, POWER_MAX } from '../sim/rules';
 
 const $ = (id: string) => document.getElementById(id)!;
+/** On a touch screen, say tap, not press. */
+export const isTouch = () => document.body.classList.contains('touch');
 const sats = (n: number) => n.toLocaleString('en-US');
 
 /** The side panel, the banners and the overlay. */
@@ -57,11 +59,10 @@ export class Hud {
     return `GOAL: grab the golden <b>#</b> on LEVEL ${level}${where && ` <b>${where}</b>`}`;
   }
 
-  /** The sound button's label. */
+  /** The sound buttons, in the panel and among the touch controls. */
   sound(on: boolean): void {
-    const el = $('sound');
-    el.textContent = on ? 'SOUND ON' : 'SOUND OFF';
-    el.setAttribute('aria-pressed', String(on));
+    $('sound').textContent = on ? 'SOUND ON' : 'SOUND OFF';
+    for (const id of ['sound', 'sound-pad']) $(id).setAttribute('aria-pressed', String(on));
   }
 
   /** A banner that fades by itself; `long` keeps it up for reading a hint. */
@@ -84,7 +85,7 @@ export class Hud {
 
   gameOver(game: Game): void {
     this.overlay(
-      `<h2>GAME OVER</h2><p><span class="coin">${sats(game.sats)} SATS</span><br>${game.mined} OF ${game.mined + game.missed} LEVELS MINED<br>LONGEST CHAIN ${game.maxChain} · ${game.depth} m</p><p>PRESS R OR TAP</p>`,
+      `<h2>GAME OVER</h2><p><span class="coin">${sats(game.sats)} SATS</span><br>${game.mined} OF ${game.mined + game.missed} LEVELS MINED<br>LONGEST CHAIN ${game.maxChain} · ${game.depth} m</p><p>${isTouch() ? 'TAP TO PLAY AGAIN' : 'PRESS R OR TAP'}</p>`,
     );
   }
 }

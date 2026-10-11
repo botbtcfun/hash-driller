@@ -15,11 +15,14 @@ const KEYS: Record<string, number> = {
 };
 
 /**
- * Turns keys into one input mask per tick. A key pressed and released between
- * two ticks still counts for the next one, so quick taps are never lost.
+ * Turns keys and on-screen controls into one input mask per tick. A press
+ * released between two ticks still counts for the next one, so quick taps
+ * are never lost.
  */
 export class Input {
   private held = 0;
+  /** Bits held by on-screen controls. */
+  private touchHeld = 0;
   private tapped = 0;
   private codes = new Map<string, number>();
 
@@ -40,9 +43,16 @@ export class Input {
     target.addEventListener('blur', () => this.reset());
   }
 
+  /** Sets what an on-screen control holds: `bits`, among the bits of its `group`. */
+  touch(group: number, bits: number): void {
+    const before = this.touchHeld;
+    this.touchHeld = (before & ~group) | (bits & group);
+    this.tapped |= this.touchHeld & ~before;
+  }
+
   /** This tick's mask. */
   sample(): number {
-    const mask = this.held | this.tapped;
+    const mask = this.held | this.touchHeld | this.tapped;
     this.tapped = 0;
     return mask;
   }
@@ -50,6 +60,7 @@ export class Input {
   reset(): void {
     this.codes.clear();
     this.held = 0;
+    this.touchHeld = 0;
     this.tapped = 0;
   }
 }

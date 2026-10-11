@@ -21,6 +21,9 @@ block's nonce. Made for Round 01 (games) of
 | R | Restart |
 | M | Sound on or off |
 
+On phones and tablets the game shows a d-pad you can slide a thumb across, a
+JUMP button, and pause and sound buttons, laid out for portrait or landscape.
+
 ## Run it
 
 ```bash
