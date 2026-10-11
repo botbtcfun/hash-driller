@@ -16,6 +16,12 @@
   <body>
     <main id="app">
       <section id="stage">
+        <div id="loading" class="loading" role="status">
+          <!-- bot -->
+          <span class="bar"><span id="load-bar"></span></span>
+          <p id="load-text">LOADING</p>
+          <noscript><p>HASH DRILLER NEEDS JAVASCRIPT</p></noscript>
+        </div>
         <div id="game"></div>
         <div id="banner" aria-live="polite"></div>
         <div id="overlay" hidden></div>
@@ -59,6 +65,7 @@
         </div>
       </div>
     </main>
+    <script src="/loader.js"></script>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

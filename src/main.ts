@@ -202,6 +202,9 @@ function intro(): void {
 <p class="blink">${isTouch() ? 'TAP TO START' : 'PRESS ANY KEY'}</p>`);
 }
 intro();
+// The game is up: the loading screen goes, and the music renders while the intro is read.
+document.getElementById('loading')?.remove();
+setTimeout(() => void sound.prepare(), 300);
 
 window.addEventListener('keydown', (e) => {
   if (!run.started) {

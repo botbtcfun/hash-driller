@@ -43,7 +43,7 @@ export class Sound {
   private fx!: Out;
   /** The bed, the beat and the hook, each behind its own fader. */
   private stems: GainNode[] = [];
-  private stemsReady: Promise<Stems | null>;
+  private stemsReady: Promise<Stems | null> | null = null;
   private level = 0;
   private muffled = false;
   private last = new Map<string, number>();
@@ -51,8 +51,9 @@ export class Sound {
   private fees = 0;
   private nextBeat = 0;
 
-  constructor() {
-    this.stemsReady = renderMusic().catch(() => null);
+  /** Renders the music, once. Called after the game is on screen, so it doesn't slow the start. */
+  prepare(): Promise<Stems | null> {
+    return (this.stemsReady ??= renderMusic().catch(() => null));
   }
 
   /** Call from a key or tap handler: browsers only start audio from one. */
@@ -80,7 +81,7 @@ export class Sound {
       fxBus.gain.value = FX_VOL;
       fxBus.connect(this.master);
       this.fx = mix(ctx, fxBus, { revWet: 0.25, dlyWet: 0.3 });
-      void this.stemsReady.then((stems) => stems && this.startMusic(stems));
+      void this.prepare().then((stems) => stems && this.startMusic(stems));
     }
     void this.ctx.resume();
   }
