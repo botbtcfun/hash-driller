@@ -1,0 +1,11 @@
+# Response headers for the deployed files (Cloudflare static assets).
+# The page loads nothing but its own files: no third parties, no analytics.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'
+  Referrer-Policy: no-referrer
+  X-Content-Type-Options: nosniff
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+# Hashed build files never change.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

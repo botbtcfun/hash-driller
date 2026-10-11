@@ -12,7 +12,8 @@
     "preview": "vite preview --port 5173 --strictPort",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "balance": "tsx scripts/balance.ts"
+    "balance": "tsx scripts/balance.ts",
+    "deploy": "pnpm run build && wrangler deploy"
   },
   "dependencies": {
     "@fontsource/press-start-2p": "^5.3.0",
@@ -24,6 +25,7 @@
     "tsx": "^4.23.15",
     "typescript": "^5.7.2",
     "vite": "5.4.21",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "wrangler": "^4.145.0"
   }
 }
