@@ -378,6 +378,12 @@ body.touch #app {
     max(8px, env(safe-area-inset-left));
 }
 
+/* Safari on iPhone floats its address bar over the bottom of the page, and
+   counts none of it in the safe area: keep the controls clear of it. */
+body.touch.portrait.ios-bar #app {
+  padding-bottom: max(calc(env(safe-area-inset-bottom) + 30px), 96px);
+}
+
 body.touch .slot {
   flex: 1 1 0;
   min-width: 0;

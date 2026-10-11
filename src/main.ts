@@ -114,10 +114,21 @@ function viewport(): { w: number; h: number } {
   return v ? { w: Math.round(v.width * v.scale), h: Math.round(v.height * v.scale) } : { w: window.innerWidth, h: window.innerHeight };
 }
 
+/**
+ * Safari in a tab on an iPhone, whose address bar floats over the page. Not
+ * other iOS browsers or in-app views, whose bars sit outside the page, and
+ * not a web app opened from the home screen, which has no bar.
+ */
+function iosBar(): boolean {
+  const ua = navigator.userAgent;
+  return /iPhone|iPod/.test(ua) && /Safari\//.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua) && !(navigator as Navigator & { standalone?: boolean }).standalone;
+}
+
 function orient(): void {
   const { w, h } = viewport();
   document.body.classList.toggle('portrait', h >= w);
   document.body.classList.toggle('landscape', h < w);
+  document.body.classList.toggle('ios-bar', iosBar());
   // The page fills exactly the visible height, between the browser's bars.
   document.documentElement.style.setProperty('--vh', `${h}px`);
 }
