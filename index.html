@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#00081c" />
+    <title>Hash Driller</title>
+    <meta name="description" content="Drill down through botBTC's mined blocks. A pixel digging game." />
+  </head>
+  <body>
+    <main id="app">
+      <section id="stage">
+        <div id="game"></div>
+        <div id="banner" aria-live="polite"></div>
+        <div id="overlay" hidden></div>
+      </section>
+      <aside id="hud">
+        <h1>HASH<br />DRILLER</h1>
+        <p id="goal" class="goal"></p>
+        <dl>
+          <div><dt>LEVEL</dt><dd id="level">-</dd></div>
+          <div><dt>DEPTH</dt><dd id="depth">0 m</dd></div>
+          <div><dt>SATS</dt><dd id="sats" class="coin">0</dd></div>
+          <div><dt>LIVES</dt><dd id="lives"></dd></div>
+          <div class="wide">
+            <dt>POWER</dt>
+            <dd><span class="bar"><span id="power"></span></span></dd>
+          </div>
+          <div><dt>MINED</dt><dd id="mined">0/0</dd></div>
+          <div><dt>CHAIN</dt><dd id="chain">-</dd></div>
+          <div><dt>NEXT PAYS</dt><dd id="next" class="coin">×1</dd></div>
+          <div><dt>DIFF</dt><dd id="diff">1.00</dd></div>
+        </dl>
+        <p class="keys">← → move, or dig what's there<br />↓ dig down · ↑ dig up<br />SPACE jump onto a step<br />P pause · R restart · M sound</p>
+        <button id="sound" class="sound" type="button" aria-pressed="true">SOUND ON</button>
+      </aside>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

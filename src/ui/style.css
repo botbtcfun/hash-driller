@@ -1,0 +1,294 @@
+/* The botBTC arcade: Base blue on navy, Press Start 2P for labels, VT323 for
+   reading. Coin yellow is for sats and power. */
+:root {
+  --bg: #00081c;
+  --panel: #031a52;
+  --line: #1a3f9e;
+  --base: #0052ff;
+  --base-hi: #4d8bff;
+  --ink: #eaf1ff;
+  --dim: #8fa6d9;
+  --coin: #ffd60a;
+  --btc: #f7931a;
+  --win: #33ff99;
+  --lose: #ff4d79;
+  --pixel: 'Press Start 2P', 'Courier New', monospace;
+  --crt: 'VT323', 'Courier New', monospace;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--crt);
+  font-size: 20px;
+  -webkit-font-smoothing: none;
+  overscroll-behavior: none;
+}
+
+#app {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 16px;
+}
+
+#stage {
+  position: relative;
+  line-height: 0;
+  border: 4px solid var(--line);
+  box-shadow: 0 0 0 4px var(--bg), 0 0 40px rgba(0, 82, 255, 0.35);
+}
+
+#game canvas {
+  display: block;
+  image-rendering: pixelated;
+}
+
+#hud {
+  width: 200px;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background: var(--panel);
+  border: 4px solid var(--line);
+}
+
+#hud h1 {
+  margin: 0;
+  font-family: var(--pixel);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--coin);
+  text-shadow: 3px 3px 0 var(--btc);
+}
+
+#hud dl {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 8px;
+  margin: 0;
+}
+
+#hud dl > div.wide {
+  grid-column: span 2;
+}
+
+#hud dt {
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+#hud dd {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.coin {
+  color: var(--coin);
+}
+
+/* What to do right now. */
+.goal {
+  margin: 0;
+  padding: 8px;
+  font-size: 20px;
+  line-height: 1.15;
+  border: 2px solid var(--coin);
+  background: var(--bg);
+}
+
+.goal b {
+  color: var(--coin);
+  font-weight: normal;
+}
+
+.goal .done {
+  color: var(--win);
+}
+
+.bar {
+  display: block;
+  height: 12px;
+  background: var(--bg);
+  border: 2px solid var(--line);
+}
+
+#power {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--coin);
+}
+
+#power.low {
+  background: var(--lose);
+  animation: blink 0.4s steps(2) infinite;
+}
+
+.keys {
+  margin: auto 0 0;
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--dim);
+}
+
+.sound {
+  font-family: var(--pixel);
+  font-size: 8px;
+  padding: 8px;
+  color: var(--ink);
+  background: var(--bg);
+  border: 2px solid var(--line);
+  cursor: pointer;
+}
+
+.sound[aria-pressed='false'] {
+  color: var(--dim);
+}
+
+.sound:hover {
+  border-color: var(--base-hi);
+}
+
+#banner {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 6%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  pointer-events: none;
+}
+
+#banner .toast {
+  padding: 8px 10px;
+  font-family: var(--pixel);
+  font-size: 10px;
+  line-height: 1.6;
+  text-align: center;
+  background: rgba(0, 8, 28, 0.85);
+  border: 2px solid var(--base-hi);
+  animation: toast 2.2s ease-out forwards;
+}
+
+#banner .toast.long {
+  animation-duration: 5s;
+  border-color: var(--lose);
+}
+
+#banner .toast b {
+  color: var(--coin);
+  font-weight: normal;
+}
+
+#overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px;
+  background: rgba(0, 8, 28, 0.82);
+  font-family: var(--pixel);
+  font-size: 10px;
+  line-height: 1.8;
+  text-align: center;
+}
+
+#overlay[hidden] {
+  display: none;
+}
+
+#overlay h2 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--coin);
+}
+
+#overlay p {
+  margin: 0;
+}
+
+#overlay .how {
+  font-family: var(--crt);
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+#overlay .how.dim {
+  font-size: 18px;
+  color: var(--dim);
+}
+
+#overlay .how b {
+  color: var(--coin);
+  font-weight: normal;
+}
+
+.blink {
+  animation: blink 1s steps(2) infinite;
+}
+
+@keyframes blink {
+  to {
+    visibility: hidden;
+  }
+}
+
+@keyframes toast {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  10%,
+  80% {
+    opacity: 1;
+    transform: none;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  #app {
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px;
+  }
+  #hud {
+    order: -1;
+    width: 100%;
+    padding: 8px;
+  }
+  #hud h1,
+  .keys {
+    display: none;
+  }
+  #hud dl {
+    grid-template-columns: repeat(4, 1fr);
+  }
+  #hud dl > div.wide {
+    grid-column: span 4;
+  }
+}

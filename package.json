@@ -1,0 +1,29 @@
+{
+  "name": "@botbtc/drill",
+  "version": "0.0.0",
+  "description": "Hash Driller: a pixel-art digging game. Mine every level's golden nonce.",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.4",
+  "scripts": {
+    "dev": "vite --port 5173 --strictPort",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --port 5173 --strictPort",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "balance": "tsx scripts/balance.ts"
+  },
+  "dependencies": {
+    "@fontsource/press-start-2p": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0",
+    "phaser": "3.90.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.7.2",
+    "vite": "5.4.21",
+    "vitest": "^2.1.8"
+  }
+}

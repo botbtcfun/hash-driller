@@ -1,0 +1,30 @@
+{
+  "comment": "The B-bot: the botBTC mark, a Bitcoin B whose counters are a bot's visor and mouth. 16x16; . is transparent.",
+  "palette": {
+    "b": "#0052ff",
+    "h": "#4d8bff",
+    "s": "#0033a3",
+    "d": "#00081c",
+    "e": "#ffffff",
+    "y": "#ffd60a",
+    "o": "#f7931a"
+  },
+  "rows": [
+    ".....y...y......",
+    ".....b...b......",
+    "..hhhhhhhhhh....",
+    "..hbbbbbbbbbb...",
+    "..hbdddddddbbs..",
+    "..hbdeedeedbbs..",
+    "..hbdeedeedbbs..",
+    "..hbdddddddbbs..",
+    "..hbbbbbbbbbs...",
+    "..hbbbbbbbbbbbs.",
+    "..hbddddddddbbs.",
+    "..hbdoooooodbbs.",
+    "..hbddddddddbbs.",
+    "..hbbbbbbbbbbbs.",
+    "...sssssssssss..",
+    ".....b...b......"
+  ]
+}
