@@ -50,6 +50,9 @@ const ARROW = ['#######', '.#####.', '..###..', '...#...'];
 
 const WARN = ['.###.', '#####', '#####', '.###.', '.###.', '..#..', '.....', '.###.', '.###.'];
 
+/** A fee: a Bitcoin-orange coin with a white ₿. */
+const COIN_GLYPH = ['.#.#.', '####.', '#...#', '####.', '#...#', '####.', '.#.#.'];
+
 const STAR = ['...#...', '...#...', '..#W#..', '##WWW##', '..#W#..', '...#...', '...#...'];
 
 /** The nonce's halo: rings of gold, stepped like pixel art, faintest outside. */
@@ -192,6 +195,24 @@ export function makeTextures(scene: Phaser.Scene): void {
           const y = 13 - i;
           if (x >= 2 && x < TILE - 2 && y >= 2 && y < TILE - 2) ctx.fillRect(x, y, 2, 1);
         }
+      }
+    });
+  }
+  for (const frame of [0, 1]) {
+    canvas(scene, `fee${frame}`, TILE, TILE, (ctx) => {
+      for (let y = 0; y < TILE; y++) {
+        for (let x = 0; x < TILE; x++) {
+          const d = Math.hypot(x + 0.5 - 8, y + 0.5 - 8);
+          if (d > 6.6) continue;
+          ctx.fillStyle = d > 5.6 ? '#5c2d00' : x + y < 11 ? '#ffc46b' : x + y > 19 ? '#b86a0e' : '#f7931a';
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      grid(ctx, COIN_GLYPH, { '#': '#ffffff' }, 6, 5);
+      if (frame) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(4, 5, 1, 2);
+        ctx.fillRect(5, 4, 2, 1);
       }
     });
   }

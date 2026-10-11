@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { DOWN, FALL, Game, type GameEvent, JUMP, LEFT, RIGHT, UP, WOBBLE } from './game';
-import { CELL, COLOR, EMPTY, HEADER, NONCE, ROCK } from './grid';
+import { CELL, COLOR, EMPTY, FEE, HEADER, NONCE, ROCK } from './grid';
 import { Mine, headerY } from './layers';
 import { InputLog } from './replay';
 import { Rng } from './rng';
@@ -24,7 +24,7 @@ function at(game: Game, x: number, y: number): string {
   const body = game.bodies.get(g.bodyAt(x, y));
   const motion = body?.state === WOBBLE ? '~' : body?.state === FALL ? 'v' : '';
   if (k === COLOR) return `${g.color[g.i(x, y)]}${motion}`;
-  return ({ [EMPTY]: '.', [ROCK]: '#', [CELL]: '+', [HEADER]: '=', [NONCE]: 'N' } as Record<number, string>)[k] ?? '?';
+  return ({ [EMPTY]: '.', [ROCK]: '#', [CELL]: '+', [HEADER]: '=', [NONCE]: 'N', [FEE]: '$' } as Record<number, string>)[k] ?? '?';
 }
 
 const mine = (seed: string) => new Mine({ seed, layers: [] });
@@ -266,6 +266,18 @@ describe('the mine', () => {
     for (const k of [1, 2, 3]) expect(rows[headerY(k)]!.kind.every((v) => v === HEADER)).toBe(true);
   });
 
+  it('scatters fees through every layer, about FEE_CHANCE a row', () => {
+    const m = mine('day-1');
+    let fees = 0;
+    for (let y = 0; y < headerY(11); y++) {
+      const row = m.next();
+      if (y >= headerY(1)) fees += row.kind.filter((k) => k === FEE).length;
+    }
+    const perLayer = fees / 10;
+    expect(perLayer).toBeGreaterThan(R.FEE_CHANCE * R.LAYER_ROWS * 0.6);
+    expect(perLayer).toBeLessThan(R.FEE_CHANCE * R.LAYER_ROWS * 1.4);
+  });
+
   it('hides exactly one nonce in every layer, below its header', () => {
     const m = mine('day-1');
     const nonces: number[] = [];
@@ -300,6 +312,17 @@ describe('mining', () => {
     expect([game.sats, game.mined]).toEqual([R.BLOCK_REWARD, 1]);
   });
 
+  it('pays fees out with the next nonce, times the chain', () => {
+    const game = Game.fromRows([
+      '@$$N.....', //
+      '333333333',
+    ]);
+    const events = run(game, 1, RIGHT).concat(run(game, R.WALK_TICKS + 1, RIGHT), run(game, R.WALK_TICKS + 1, RIGHT));
+    expect(events.filter((e) => e.type === 'fee').map((e) => e.type === 'fee' && e.pending)).toEqual([R.FEE_SATS, 2 * R.FEE_SATS]);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'nonce', fees: 2 * R.FEE_SATS, reward: R.BLOCK_REWARD + 2 * R.FEE_SATS }));
+    expect([game.pending, game.sats]).toEqual([0, R.BLOCK_REWARD + 2 * R.FEE_SATS]);
+  });
+
   it('catches a falling nonce instead of being crushed by it', () => {
     const game = Game.fromRows([
       '.N.......', //
@@ -321,18 +344,24 @@ describe('mining', () => {
       expect(settled).toHaveLength(1);
     }
     expect(game.missed).toBeGreaterThan(0);
-    // Each nonce pays the block reward times the chain it makes; a miss breaks the chain.
+    // Each nonce pays the subsidy and the fees since the last nonce, times the
+    // chain it makes; a miss breaks the chain and loses the fees.
     let chain = 0;
+    let fees = 0;
     for (const e of events) {
-      if (e.type === 'missed') chain = 0;
-      else if (e.type === 'nonce') {
+      if (e.type === 'fee') fees += e.value;
+      else if (e.type === 'missed') {
+        expect(e.fees).toBe(fees);
+        chain = fees = 0;
+      } else if (e.type === 'nonce') {
         chain++;
-        expect(e.chain).toBe(chain);
+        expect([e.chain, e.fees]).toEqual([chain, fees]);
         const halvings = Math.floor((e.layer - 1) / R.HALVING_LAYERS);
-        expect(e.reward).toBe((R.BLOCK_REWARD >> halvings) * Math.min(chain, R.MAX_CHAIN));
+        expect(e.reward).toBe(((R.BLOCK_REWARD >> halvings) + fees) * Math.min(chain, R.MAX_CHAIN));
+        fees = 0;
       }
     }
-    expect(game.chain).toBe(chain);
+    expect([game.chain, game.pending]).toEqual([chain, fees]);
     // Holding down never digs sideways, so it finds few nonces.
     expect(game.mined).toBeLessThan(game.missed);
   });

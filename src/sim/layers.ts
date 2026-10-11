@@ -1,10 +1,11 @@
-import { CELL, COLOR, HEADER, NONCE, ROCK, type Row } from './grid';
+import { CELL, COLOR, FEE, HEADER, NONCE, ROCK, type Row } from './grid';
 import { Rng } from './rng';
 import {
   CELL_CHANCE,
   COLORS,
   CONTESTED_REVEALS,
   CONTESTED_ROCK,
+  FEE_CHANCE,
   FIELD_TOP,
   FIRST_NONCE_MAX_ROW,
   FIRST_NONCE_MIN_ROW,
@@ -18,6 +19,7 @@ import {
   STICK_UP,
   TOPSOIL_CELL_CHANCE,
   TOPSOIL_COLORS,
+  TOPSOIL_FEE_CHANCE,
   TOPSOIL_ROWS,
   WIDTH,
 } from './rules';
@@ -124,6 +126,14 @@ export class Mine {
       kind[x] = CELL;
       color[x] = 0;
       row[x] = -1;
+    }
+    if (rng.chance(k === 0 ? TOPSOIL_FEE_CHANCE : FEE_CHANCE)) {
+      const x = rng.below(WIDTH);
+      if (kind[x] !== CELL) {
+        kind[x] = FEE;
+        color[x] = 0;
+        row[x] = -1;
+      }
     }
     if (y === this.nonceY) {
       kind[this.nonceX] = NONCE;

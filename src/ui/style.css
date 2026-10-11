@@ -104,6 +104,10 @@ body {
   color: var(--coin);
 }
 
+.fee {
+  color: var(--btc);
+}
+
 /* What to do right now. */
 .goal {
   margin: 0;

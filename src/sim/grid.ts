@@ -12,9 +12,11 @@ export const NONCE = 5;
 export const GROUND = 6;
 /** Left or right of the shaft. */
 export const WALL = 7;
+/** A transaction fee, paid out with the next nonce mined. */
+export const FEE = 8;
 
 /** Things the bot picks up by drilling or walking into them. */
-export const isItem = (kind: number): boolean => kind === CELL || kind === NONCE;
+export const isItem = (kind: number): boolean => kind === CELL || kind === NONCE || kind === FEE;
 
 /** A row as generated: a kind and a colour per column. */
 export interface Row {

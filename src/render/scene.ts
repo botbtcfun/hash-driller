@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 import { FALL, type Game, type GameEvent, POP, WOBBLE } from '../sim/game';
-import { CELL, COLOR, HEADER, NONCE, ROCK } from '../sim/grid';
+import { CELL, COLOR, FEE, HEADER, NONCE, ROCK } from '../sim/grid';
 import { headerY, layerAt } from '../sim/layers';
 import { FALL_TICKS, TICK_HZ, VIEW_ABOVE, WIDTH } from '../sim/rules';
 import type { Input } from './input';
@@ -229,6 +229,7 @@ export class PlayScene extends Phaser.Scene {
     }
     if (k === ROCK) return `rock${Math.min(g.hits[g.i(x, y)]!, 2)}`;
     if (k === CELL) return `cell${(game.tick >> 4) & 1}`;
+    if (k === FEE) return `fee${(game.tick >> 3) % 6 === 0 ? 1 : 0}`;
     if (k === HEADER) return 'header';
     if (k === NONCE) {
       const f = (game.tick >> 2) % 8;
@@ -238,11 +239,11 @@ export class PlayScene extends Phaser.Scene {
   }
 
   /** Text that rises from where something happened and fades. */
-  private floatText(text: string, bits: { x: number; y: number }[]): void {
+  private floatText(text: string, bits: { x: number; y: number }[], color = '#ffd60a'): void {
     const x = (bits.reduce((s, b) => s + b.x, 0) / bits.length) * TILE + TILE / 2;
     const y = (bits.reduce((s, b) => s + b.y, 0) / bits.length) * TILE + TILE / 2;
     const t = this.add
-      .text(Math.round(x), Math.round(y), text, { fontFamily: '"Press Start 2P"', fontSize: '8px', color: '#ffd60a', stroke: '#00081c', strokeThickness: 2 })
+      .text(Math.round(x), Math.round(y), text, { fontFamily: '"Press Start 2P"', fontSize: '8px', color, stroke: '#00081c', strokeThickness: 2 })
       .setOrigin(0.5)
       .setDepth(DEPTH.float);
     this.tweens.add({ targets: t, y: y - 20, alpha: 0, duration: 900, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
@@ -355,6 +356,10 @@ export class PlayScene extends Phaser.Scene {
       } else if (e.type === 'cell') {
         this.sparks.setParticleTint(0xffd60a);
         this.sparks.explode(10, e.x * TILE + 8, e.y * TILE + 8);
+      } else if (e.type === 'fee') {
+        this.sparks.setParticleTint(0xf7931a);
+        this.sparks.explode(8, e.x * TILE + 8, e.y * TILE + 8);
+        this.floatText(`+${e.value >= 1000 ? `${Math.round(e.value / 100) / 10}k` : e.value}`, [e], '#f7931a');
       } else if (e.type === 'nonce') {
         this.sparks.setParticleTint(0xffd60a);
         this.sparks.explode(40, e.x * TILE + 8, e.y * TILE + 8);

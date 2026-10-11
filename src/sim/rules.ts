@@ -2,7 +2,7 @@
  * Every tunable number in the game. Times are in ticks, 60 a second. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 1;
+export const RULES_VERSION = 2;
 export const TICK_HZ = 60;
 
 // The shaft
@@ -37,12 +37,15 @@ export const TOPSOIL_COLORS = 3;
 export const STICK_LEFT = 0.3;
 export const STICK_UP = 0.25;
 /** Hard rock, as a share of blocks: layer 1, the step per layer, the cap. */
-export const ROCK_BASE = 0.03;
-export const ROCK_STEP = 0.01;
-export const ROCK_MAX = 0.12;
+export const ROCK_BASE = 0.05;
+export const ROCK_STEP = 0.015;
+export const ROCK_MAX = 0.16;
 /** Chance a row holds a power cell. */
 export const CELL_CHANCE = 1 / 10;
 export const TOPSOIL_CELL_CHANCE = 1 / 8;
+/** Chance a row holds a transaction fee: about 8 a level, anywhere across it. */
+export const FEE_CHANCE = 0.2;
+export const TOPSOIL_FEE_CHANCE = 0.25;
 /** A block with this many reveals was contested: its layer gets more rock. */
 export const CONTESTED_REVEALS = 10;
 export const CONTESTED_ROCK = 0.03;
@@ -99,6 +102,12 @@ export const HALVING_LAYERS = 4;
 export const BLOCK_REWARD = 50_000;
 /** The most a chain of mined blocks multiplies the reward. */
 export const MAX_CHAIN = 8;
+/**
+ * A fee picked up at layer 1, growing by FEE_GROWTH percent a layer while the
+ * subsidy halves: deep down, fees are most of the reward, as in Bitcoin.
+ */
+export const FEE_SATS = 4000;
+export const FEE_GROWTH = 15;
 /** Small change for digging and combos; mining is where the sats are. */
 export const DRILL_SATS = 1;
 export const POP_SATS = 10;

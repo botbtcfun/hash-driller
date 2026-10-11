@@ -194,7 +194,8 @@ function intro(): void {
   const controls = isTouch() ? 'D-pad: move and dig · JUMP: hop onto a step' : '← → ↓ ↑ move and dig · SPACE jump';
   hud.overlay(`<h2>HASH DRILLER</h2>
 <p class="how">Dig down level by level. Every level has<br>one golden <b>#</b>: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
-<p class="how">Mine every level to grow your chain:<br>each pays more. Pass the next <b>LEVEL</b> line<br>without its <b>#</b> and the chain breaks.</p>
+<p class="how">Grab the orange coins: they're fees,<br>and the <b>#</b> pays them out with the level.</p>
+<p class="how">Mine every level to grow your chain:<br>each pays more. Pass the next <b>LEVEL</b> line<br>without its <b>#</b> and the chain breaks,<br>and its fees are lost.</p>
 <p class="how">Power drains: grab <b>⚡</b> cells.<br>Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or dig it away with ↑ just in time.</p>
 <p class="how">${controls}</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>

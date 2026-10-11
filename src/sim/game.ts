@@ -1,4 +1,4 @@
-import { CELL, COLOR, EMPTY, GROUND, Grid, HEADER, NONCE, ROCK, WALL, isItem } from './grid';
+import { CELL, COLOR, EMPTY, FEE, GROUND, Grid, HEADER, NONCE, ROCK, WALL, isItem } from './grid';
 import { Mine, headerY } from './layers';
 import { isqrt } from './rng';
 import * as R from './rules';
@@ -67,10 +67,12 @@ export type GameEvent =
   | { type: 'respawn' }
   | { type: 'jump' }
   | { type: 'layer'; layer: number; difficulty: number; halving: boolean }
-  /** A layer's nonce found: the block is mined and the chain grows. */
-  | { type: 'nonce'; layer: number; x: number; y: number; reward: number; chain: number }
-  /** A layer left behind without its nonce: orphaned, and the chain breaks. */
-  | { type: 'missed'; layer: number; chain: number }
+  /** A layer's nonce found: the block is mined, its fees paid out, and the chain grows. */
+  | { type: 'nonce'; layer: number; x: number; y: number; reward: number; subsidy: number; fees: number; chain: number }
+  /** A layer left behind without its nonce: orphaned, its fees lost, and the chain broken. */
+  | { type: 'missed'; layer: number; chain: number; fees: number }
+  /** A fee picked up: `pending` is all the next nonce will pay out in fees. */
+  | { type: 'fee'; x: number; y: number; value: number; pending: number }
   | { type: 'over' };
 
 const STEP: Record<Dir, [number, number]> = { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] };
@@ -100,6 +102,8 @@ export class Game {
   missed = 0;
   /** Blocks mined in a row: the reward's multiplier, shown as the chain. */
   chain = 0;
+  /** Fees picked up since the last nonce: the next one pays them out, a miss loses them. */
+  pending = 0;
   maxChain = 0;
   over = false;
   /** What happened this tick, for drawing and sound. */
@@ -161,6 +165,7 @@ export class Game {
         else if (ch === '+') kind[x] = CELL;
         else if (ch === '=') kind[x] = HEADER;
         else if (ch === 'N') kind[x] = NONCE;
+        else if (ch === '$') kind[x] = FEE;
         else if (ch === '@') {
           game.bot.x = game.bot.fromX = x;
           game.bot.y = game.bot.fromY = y;
@@ -226,7 +231,14 @@ export class Game {
 
   /** What the next nonce found pays: the block reward times the chain it would make. */
   get nonceReward(): number {
-    return (R.BLOCK_REWARD >> this.halvings) * Math.min(this.chain + 1, R.MAX_CHAIN);
+    return ((R.BLOCK_REWARD >> this.halvings) + this.pending) * Math.min(this.chain + 1, R.MAX_CHAIN);
+  }
+
+  /** What a fee is worth at the bot's layer: FEE_SATS, compounding FEE_GROWTH percent a layer. */
+  get feeValue(): number {
+    let v = R.FEE_SATS;
+    for (let k = 1; k < this.layer; k++) v = Math.floor((v * (100 + R.FEE_GROWTH)) / 100);
+    return v;
   }
 
   /** An FNV-1a hash of the whole state, for determinism checks. */
@@ -254,7 +266,7 @@ export class Game {
       mix(b.timer);
     }
     const bot = this.bot;
-    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.power, this.lives, this.sats, this.combo, this.chain, this.difficulty, this.layer, this.tick]) mix(v);
+    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.power, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
     return h >>> 0;
   }
 
@@ -382,7 +394,7 @@ export class Game {
     this.dirty = true;
   }
 
-  /** Picks up a power cell or a nonce. */
+  /** Picks up a power cell, a fee or a nonce. */
   private take(x: number, y: number): void {
     const g = this.grid;
     const i = g.i(x, y);
@@ -390,12 +402,18 @@ export class Game {
       // The colour byte holds the layer's low byte; the layer is the latest one with it.
       const layer = this.layer - ((this.layer - g.color[i]!) & 0xff);
       const reward = this.nonceReward;
+      const fees = this.pending;
       this.sats += reward;
+      this.pending = 0;
       this.chain++;
       this.maxChain = Math.max(this.maxChain, this.chain);
       this.mined++;
       this.minedLayers.add(layer);
-      this.events.push({ type: 'nonce', layer, x, y, reward, chain: this.chain });
+      this.events.push({ type: 'nonce', layer, x, y, reward, subsidy: R.BLOCK_REWARD >> this.halvings, fees, chain: this.chain });
+    } else if (g.kind[i] === FEE) {
+      const value = this.feeValue;
+      this.pending += value;
+      this.events.push({ type: 'fee', x, y, value, pending: this.pending });
     } else {
       this.power = Math.min(R.POWER_MAX, this.power + this.cellPower);
       this.events.push({ type: 'cell', x, y });
@@ -407,9 +425,11 @@ export class Game {
   private reachLayer(k: number): void {
     const left = k - 1;
     if (left >= 1 && !this.minedLayers.has(left)) {
-      // Missed: the block is orphaned, its nonce turns to rock, and the chain breaks.
+      // Missed: the block is orphaned with its fees, its nonce turns to rock, and the chain breaks.
       const chain = this.chain;
+      const fees = this.pending;
       this.chain = 0;
+      this.pending = 0;
       this.missed++;
       const g = this.grid;
       for (let y = g.top; y < g.bottom; y++) {
@@ -418,7 +438,7 @@ export class Game {
           if (g.kind[i] === NONCE && g.color[i] === (left & 0xff)) g.kind[i] = ROCK;
         }
       }
-      this.events.push({ type: 'missed', layer: left, chain });
+      this.events.push({ type: 'missed', layer: left, chain, fees });
     }
     this.layer = k;
     if (k >= 2) {

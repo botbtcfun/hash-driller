@@ -1,5 +1,5 @@
 import type { Game, GameEvent } from '../sim/game';
-import { MAX_CHAIN, POWER_MAX } from '../sim/rules';
+import { POWER_MAX } from '../sim/rules';
 
 const $ = (id: string) => document.getElementById(id)!;
 /** On a touch screen, say tap, not press. */
@@ -13,7 +13,7 @@ export class Hud {
   update(game: Game): void {
     const power = Math.ceil((game.power * 100) / POWER_MAX);
     const goal = this.goal(game);
-    const state = [goal, game.layer, game.depth, game.sats, power, game.lives, game.chain, game.difficulty, game.mined, game.missed].join();
+    const state = [goal, game.layer, game.depth, game.sats, power, game.lives, game.chain, game.pending, game.difficulty, game.mined, game.missed].join();
     if (state === this.shown) return;
     this.shown = state;
     $('goal').innerHTML = goal;
@@ -25,7 +25,8 @@ export class Hud {
     bar.classList.toggle('low', power <= 25);
     $('lives').textContent = `${Math.max(0, game.lives)}`;
     $('chain').textContent = game.chain ? `×${game.chain}` : '-';
-    $('next').textContent = `×${Math.min(game.chain + 1, MAX_CHAIN)}`;
+    $('fees').textContent = sats(game.pending);
+    $('next').textContent = sats(game.nonceReward);
     $('diff').textContent = (game.difficulty / 1000).toFixed(2);
     $('mined').textContent = `${game.mined}/${game.mined + game.missed}`;
   }
@@ -33,9 +34,11 @@ export class Hud {
   events(events: GameEvent[], game: Game): void {
     for (const e of events) {
       if (e.type === 'nonce') {
-        this.toast(`LEVEL ${e.layer} MINED!<br><b>+${sats(e.reward)} SATS</b>${e.chain > 1 ? `<br>CHAIN ×${e.chain}` : ''}`);
+        const parts = `${sats(e.subsidy)}${e.fees ? ` + ${sats(e.fees)} FEES` : ''}${e.chain > 1 ? ` ×${e.chain}` : ''}`;
+        this.toast(`LEVEL ${e.layer} MINED!<br><b>+${sats(e.reward)} SATS</b><br>${parts}`);
       } else if (e.type === 'missed') {
-        this.toast(`LEVEL ${e.layer} MISSED${e.chain ? `<br>CHAIN ×${e.chain} BROKEN` : ''}`);
+        const lost = [e.fees ? `${sats(e.fees)} IN FEES LOST` : '', e.chain ? `CHAIN ×${e.chain} BROKEN` : ''].filter(Boolean).join('<br>');
+        this.toast(`LEVEL ${e.layer} MISSED${lost ? `<br>${lost}` : ''}`);
       } else if (e.type === 'layer') {
         this.toast(`LEVEL ${e.layer}<br>FIND ITS GOLDEN <b>#</b>`);
         if (e.halving) this.toast('<b>HALVING!</b><br>REWARD AND POWER CELLS HALVED');
@@ -55,8 +58,8 @@ export class Hud {
       where = dy > 0 ? ` ↓ ${dy} m` : dy < 0 ? ` ↑ ${-dy} m` : dx ? ` ${dx < 0 ? '←' : '→'} ${Math.abs(dx)}` : '';
     }
     const level = Math.max(1, game.layer);
-    if (game.layer >= 1 && game.blockMined) return `<span class="done">LEVEL ${level} MINED ✓</span><br>Dig on to LEVEL ${level + 1}`;
-    return `GOAL: grab the golden <b>#</b> on LEVEL ${level}${where && ` <b>${where}</b>`}`;
+    if (game.layer >= 1 && game.blockMined) return `<span class="done">LEVEL ${level} MINED ✓</span><br>Grab fees, dig on to LEVEL ${level + 1}`;
+    return `GOAL: grab the golden <b>#</b> on LEVEL ${level}${where && ` <b>${where}</b>`} · it pays <b>${sats(game.nonceReward)}</b>`;
   }
 
   /** The sound buttons, in the panel and among the touch controls. */

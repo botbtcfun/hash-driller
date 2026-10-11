@@ -47,6 +47,8 @@ export class Sound {
   private level = 0;
   private muffled = false;
   private last = new Map<string, number>();
+  /** Fees picked up since the last nonce: each rings a step higher. */
+  private fees = 0;
   private nextBeat = 0;
 
   constructor() {
@@ -186,6 +188,13 @@ export class Sound {
           [77, 80, 84, 89].forEach((m, i) => bell(ctx, out, t + i * 0.045, m, { vol: 0.07, p: -0.3 + i * 0.2 }));
           sweep(ctx, out, t, 0.3, { vol: 0.08, from: 600, to: 5000, q: 1.2, shape: (x) => Math.sin(Math.PI * x) ** 2 });
           break;
+        case 'fee': {
+          // Ka-ching, a step higher for each fee since the last nonce.
+          const step = Math.min(12, this.fees++);
+          bell(ctx, out, t, 83 + step, { vol: 0.07, len: 0.3, p: -0.2 });
+          bell(ctx, out, t + 0.05, 88 + step, { vol: 0.07, len: 0.45, p: 0.2 });
+          break;
+        }
         case 'nonce': {
           // The big one: an impact, a chord stab that climbs with the chain, an 808 and sparkles.
           const name = MINED_CHORDS[(e.chain - 1) % MINED_CHORDS.length]!;
@@ -196,9 +205,11 @@ export class Sound {
           stab(ctx, out, t, ch.pad.map((m) => m + up), { vol: 0.16, len: 0.9 });
           e808(ctx, out, t, 0.5, ch.root + 12, { vol: 0.2 });
           ch.pad.slice(-3).forEach((m, i) => bell(ctx, out, t + 0.09 + i * 0.07, m + 12 + up, { vol: 0.04, p: (i - 1) * 0.5 }));
+          this.fees = 0;
           break;
         }
         case 'missed':
+          this.fees = 0;
           downlifter(ctx, out, t, 0.9, 0.09);
           e808(ctx, out, t, 0.6, 36, { from: 41, glide: 0.15, vol: 0.18 });
           keys(ctx, out, t, 0.5, 53, { vol: 0.05 });

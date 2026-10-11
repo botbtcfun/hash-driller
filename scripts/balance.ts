@@ -4,7 +4,7 @@
  *
  *   pnpm --filter @botbtc/drill balance [seeds=20] [minutes=5]
  */
-import { CELL, COLOR, EMPTY, NONCE, isItem } from '../src/sim/grid';
+import { CELL, COLOR, EMPTY, FEE, NONCE, isItem } from '../src/sim/grid';
 import { DOWN, FALL, Game, JUMP, LEFT, RIGHT, UP, WOBBLE } from '../src/sim/game';
 import { Mine } from '../src/sim/layers';
 import { Rng } from '../src/sim/rng';
@@ -75,18 +75,20 @@ function nearest(game: Game, kind: number, from: number, to: number): [number, n
   return best;
 }
 
-/** Goes for each nonce, and for power cells when low; otherwise as careful. */
+/** Goes for power cells when low, then fees close by, then each nonce; otherwise as careful. */
 const miner: Policy = (game, rng, t) => {
   const { x, y } = game.bot;
   const g = game.grid;
   const side = (dx: number) => (dx < 0 ? LEFT : RIGHT);
   if (danger(game, x, y)) return careful(game, rng, t);
-  const target = nearest(game, NONCE, -3, 14) ?? (game.power < POWER_MAX * 0.6 ? nearest(game, CELL, -1, 8) : null);
+  const target =
+    (game.power < POWER_MAX * 0.5 ? nearest(game, CELL, -1, 8) : null) ?? nearest(game, FEE, 0, 3) ?? nearest(game, NONCE, -3, 14);
   if (!target) return DOWN;
   const [tx, ty] = target;
   if (tx !== x && ty <= y + 1) {
     const dx = tx < x ? -1 : 1;
-    const k = g.kindAt(x + dx, y);
+    // Never step under something already shaking: dig it out first, or wait.
+    if (g.kindAt(x + dx, y) === EMPTY && danger(game, x + dx, y)) return 0;
     return side(dx);
   }
   if (ty > y) return DOWN;
@@ -100,7 +102,7 @@ const maxTicks = minutes * 60 * TICK_HZ;
 
 const rows = [];
 for (const [name, policy] of Object.entries({ down, random, careful, miner })) {
-  const totals = { seconds: 0, depth: 0, sats: 0, layer: 0, crush: 0, power: 0, pops: 0, combos: 0, maxCombo: 0, maxChain: 0, cells: 0, fees: 0, difficulty: 0, mined: 0, missed: 0 };
+  const totals = { seconds: 0, depth: 0, sats: 0, layer: 0, crush: 0, power: 0, pops: 0, combos: 0, maxCombo: 0, maxChain: 0, cells: 0, comboPower: 0, coins: 0, difficulty: 0, mined: 0, missed: 0 };
   for (let s = 0; s < seeds; s++) {
     const game = new Game(new Mine({ seed: `balance:${s}`, layers: [] }));
     const rng = new Rng(`policy:${s}`);
@@ -112,9 +114,10 @@ for (const [name, policy] of Object.entries({ down, random, careful, miner })) {
         else if (e.type === 'pop') {
           totals.pops++;
           if (e.combo >= 2) totals.combos++;
-          totals.fees += COMBO_POWER * e.bits.length * (e.combo - 1);
+          totals.comboPower += COMBO_POWER * e.bits.length * (e.combo - 1);
         }
         else if (e.type === 'cell') totals.cells++;
+        else if (e.type === 'fee') totals.coins++;
       }
     }
     totals.seconds += t / TICK_HZ;
@@ -144,8 +147,9 @@ for (const [name, policy] of Object.entries({ down, random, careful, miner })) {
     'max combo': avg(totals.maxCombo),
     'max chain': avg(totals.maxChain),
     'cells': avg(totals.cells),
-    /** Power from fees against power from cells. */
-    'fees:cells': Math.round((totals.fees / Math.max(1, totals.cells * CELL_POWER)) * 100) / 100,
+    'fee coins': avg(totals.coins),
+    /** Power from combos against power from cells. */
+    'combo:cells': Math.round((totals.comboPower / Math.max(1, totals.cells * CELL_POWER)) * 100) / 100,
     'diff': avg(totals.difficulty),
   });
 }
