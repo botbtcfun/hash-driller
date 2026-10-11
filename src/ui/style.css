@@ -26,6 +26,8 @@ html,
 body {
   margin: 0;
   height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
   background: var(--bg);
   color: var(--ink);
   font-family: var(--crt);
@@ -41,6 +43,14 @@ body {
   justify-content: center;
   min-height: 100%;
   padding: 16px;
+}
+
+/* Holds the stage. On touch screens it takes all the space the panel and the
+   controls leave, and the game fits the playfield to it. */
+.slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 #stage {
@@ -360,6 +370,21 @@ body {
   -webkit-touch-callout: none;
 }
 
+body.touch #app {
+  height: var(--vh, 100vh);
+  min-height: 0;
+  /* Clear of the notch, the rounded corners and the home indicator. */
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
+}
+
+body.touch .slot {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+}
+
 body.touch {
   overflow: hidden;
   touch-action: none;
@@ -460,7 +485,6 @@ body.touch.portrait #app {
   flex-direction: column;
   justify-content: flex-start;
   gap: 8px;
-  padding: 8px;
 }
 
 body.touch.portrait #hud {
@@ -479,7 +503,6 @@ body.touch.portrait .pad {
 /* Touch, landscape: the d-pad, the shaft, the panel, the jump button. */
 body.touch.landscape #app {
   gap: 12px;
-  padding: 8px;
 }
 
 body.touch.landscape .pad {
@@ -506,6 +529,7 @@ body.touch #overlay {
   position: fixed;
   z-index: 20;
   overflow-y: auto;
+  touch-action: pan-y;
   background: rgba(0, 8, 28, 0.94);
 }
 

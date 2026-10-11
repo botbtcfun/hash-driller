@@ -104,15 +104,28 @@ const game = new Phaser.Game({
   scene: [scene],
 });
 
+/**
+ * The visible area in CSS pixels as if not pinch-zoomed: iOS shrinks
+ * innerWidth and innerHeight while the page is zoomed, and the playfield
+ * must not shrink with them.
+ */
+function viewport(): { w: number; h: number } {
+  const v = window.visualViewport;
+  return v ? { w: Math.round(v.width * v.scale), h: Math.round(v.height * v.scale) } : { w: window.innerWidth, h: window.innerHeight };
+}
+
 function orient(): void {
-  const portrait = window.innerHeight >= window.innerWidth;
-  document.body.classList.toggle('portrait', portrait);
-  document.body.classList.toggle('landscape', !portrait);
+  const { w, h } = viewport();
+  document.body.classList.toggle('portrait', h >= w);
+  document.body.classList.toggle('landscape', h < w);
+  // The page fills exactly the visible height, between the browser's bars.
+  document.documentElement.style.setProperty('--vh', `${h}px`);
 }
 
 /** Whether the panel sits beside the playfield rather than above it. */
 function sideBySide(): boolean {
-  return isTouch() ? window.innerWidth > window.innerHeight : window.innerWidth > 640;
+  const { w, h } = viewport();
+  return isTouch() ? w > h : w > 640;
 }
 
 /**
@@ -122,26 +135,23 @@ function sideBySide(): boolean {
  * enough to hide uneven pixels, so there it fills the space.
  */
 function fit(): { zoom: number; height: number } {
-  const el = (id: string) => document.getElementById(id)!;
-  const hud = el('hud');
+  const hud = document.getElementById('hud')!;
+  const view = viewport();
   const touch = isTouch();
   let w: number;
   let h: number;
-  if (touch && !sideBySide()) {
-    // Padding and the stage's border; the panel above and the controls below, with gaps.
-    w = window.innerWidth - 16 - 8;
-    h = window.innerHeight - 16 - 8 - 2 * 8 - hud.offsetHeight - el('pad').offsetHeight;
-  } else if (touch) {
-    const actions = document.querySelector<HTMLElement>('.actions')!;
-    w = window.innerWidth - 16 - 8 - 3 * 12 - hud.offsetWidth - el('dpad').offsetWidth - actions.offsetWidth;
-    h = window.innerHeight - 16 - 8;
+  if (touch) {
+    // The slot is what the panel and the controls leave; less the stage's border.
+    const slot = document.getElementById('slot')!;
+    w = slot.clientWidth - 8;
+    h = slot.clientHeight - 8;
   } else if (!sideBySide()) {
-    w = window.innerWidth - 16 - 8;
-    h = window.innerHeight - 16 - 8 - 8 - hud.offsetHeight;
+    w = view.w - 16 - 8;
+    h = view.h - 16 - 8 - 8 - hud.offsetHeight;
   } else {
     // Padding, the stage's border, and the sidebar with its gap.
-    w = window.innerWidth - 32 - 8 - 16 - hud.offsetWidth;
-    h = window.innerHeight - 32 - 8;
+    w = view.w - 32 - 8 - 16 - hud.offsetWidth;
+    h = view.h - 32 - 8;
   }
   const fitted = Math.min(w / WIDTH_PX, h / MIN_HEIGHT_PX);
   const zoom = touch ? Math.max(0.5, Math.floor(fitted * 100) / 100) : Math.max(1, Math.floor(fitted));
@@ -159,8 +169,23 @@ function layout(): void {
   if (sideBySide()) hud.style.height = `${document.getElementById('stage')!.offsetHeight}px`;
 }
 
-window.addEventListener('resize', layout);
+// Rotation, the browser's bars sliding in and out, and zoom all resize: lay out once a frame at most.
+let pending = 0;
+const relayout = () => {
+  if (!pending) pending = requestAnimationFrame(() => {
+    pending = 0;
+    layout();
+  });
+};
+window.addEventListener('resize', relayout);
+window.visualViewport?.addEventListener('resize', relayout);
 game.events.once('ready', layout);
+
+// No page zoom while playing: iOS ignores the viewport's user-scalable=no, so
+// cancel its pinch gestures, double-tap zoom, and two-finger moves directly.
+for (const type of ['gesturestart', 'gesturechange', 'gestureend']) document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', (e) => e.preventDefault(), { passive: false });
+document.addEventListener('touchmove', (e) => e.touches.length > 1 && e.preventDefault(), { passive: false });
 // A touch screen that didn't say so up front gets its controls on the first touch.
 window.addEventListener(
   'touchstart',
