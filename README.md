@@ -24,8 +24,10 @@ block's nonce. Made for Round 01 (games) of
 
 On phones and tablets the shaft fills the screen. A strip with your sats,
 level, chain, lives and power floats over the top, and a d-pad you can slide a
-thumb across, and pause and sound buttons float over the bottom. In landscape they sit either side of the shaft. Add `?debug` to the
-address to see what the browser reports about the screen.
+thumb across floats at the bottom. Hold its centre to drag it where you like:
+it stays there, and the pause and sound buttons move to the corner it leaves
+clear. In landscape the controls sit either side of the shaft. Add `?debug` to
+the address to see what the browser reports about the screen.
 
 ## Run it
 

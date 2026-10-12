@@ -11,9 +11,9 @@ import { BG, TILE } from './render/sprites';
 import { Game, type GameEvent } from './sim/game';
 import { Mine } from './sim/layers';
 import { InputLog } from './sim/replay';
-import { WIDTH } from './sim/rules';
+import { VIEW_ABOVE, WIDTH } from './sim/rules';
 import { Hud, isTouch } from './ui/hud';
-import { touchControls } from './ui/touch';
+import { type Room, TouchControls } from './ui/touch';
 
 const WIDTH_PX = WIDTH * TILE;
 const MIN_HEIGHT_PX = MIN_VIEW_ROWS * TILE;
@@ -86,6 +86,7 @@ class Run implements Session {
 
 const run = new Run();
 const scene = new PlayScene(run, keys);
+const controls = new TouchControls(keys, () => run.togglePause(), insets);
 
 // Canvas text needs the pixel font loaded before it is first drawn.
 await document.fonts.load('8px "Press Start 2P"');
@@ -145,7 +146,6 @@ function orient(): void {
   document.body.classList.toggle('portrait', h >= w);
   document.body.classList.toggle('landscape', h < w);
   document.body.classList.toggle('ios-bar', iosBar());
-  document.documentElement.style.setProperty('--bar', `${barCover()}px`);
   // The page fills exactly the visible height, between the browser's bars.
   document.documentElement.style.setProperty('--vh', `${h}px`);
 }
@@ -202,9 +202,52 @@ function fit(): { zoom: number; height: number } {
 }
 
 /**
- * Sizes the playfield to the window. On touch screens, tells the scene how
- * much the strip and the controls cover; on desktops, sizes the sidebar to
- * the playfield.
+ * Where the touch controls may go. In portrait, anywhere below the bot and
+ * the row under it, down to Safari's floating bar on an iPhone; in landscape,
+ * either side of the shaft, below the strip on its right.
+ */
+function room(zoom: number): Room {
+  const { w, h } = viewport();
+  const safe = safeArea();
+  const left = Math.max(12, safe.left);
+  const right = w - Math.max(12, safe.right);
+  const strip = document.getElementById('strip')!.getBoundingClientRect();
+  const corners = (floor: number): Room['corners'] => [
+    { x: right, y: floor, side: 'right' },
+    { x: left, y: floor, side: 'left' },
+  ];
+  if (document.body.classList.contains('portrait')) {
+    const floor = h - (iosBar() ? Math.max(safe.bottom + 12, barCover()) : Math.max(12, safe.bottom));
+    const top = strip.bottom + (VIEW_ABOVE + 2) * TILE * zoom;
+    return { key: 'portrait', areas: [{ left, right, top, bottom: floor }], home: { area: 0, x: 0.5, y: 1 }, corners: corners(floor), floor };
+  }
+  const floor = h - Math.max(12, safe.bottom);
+  const shaft = document.querySelector('#game canvas')!.getBoundingClientRect();
+  return {
+    key: 'landscape',
+    areas: [
+      { left, right: shaft.left - 12, top: Math.max(12, safe.top), bottom: floor },
+      { left: shaft.right + 12, right, top: strip.bottom + 12, bottom: floor },
+    ],
+    home: { area: 0, x: 0.5, y: 0.5 },
+    corners: corners(floor),
+    floor,
+  };
+}
+
+/** Tells the scene how much of the playfield the strip and the touch controls cover. */
+function insets(): void {
+  const portrait = document.body.classList.contains('portrait');
+  const strip = portrait ? document.getElementById('strip')!.offsetHeight : 0;
+  const pad = portrait ? Math.max(0, viewport().h - controls.reach()) : 0;
+  document.documentElement.style.setProperty('--strip-h', `${strip}px`);
+  scene.setInsets(strip / game.scale.zoom, pad / game.scale.zoom, true);
+}
+
+/**
+ * Sizes the playfield to the window. On touch screens, lays out the controls
+ * and tells the scene what they cover; on desktops, sizes the sidebar to the
+ * playfield.
  */
 function layout(): void {
   orient();
@@ -214,12 +257,8 @@ function layout(): void {
   game.scale.resize(WIDTH_PX, height);
   game.scale.setZoom(zoom);
   if (isTouch()) {
-    const portrait = document.body.classList.contains('portrait');
-    const strip = portrait ? document.getElementById('strip')!.offsetHeight : 0;
-    const keysTop = Math.min(document.getElementById('dpad')!.getBoundingClientRect().top, document.querySelector('.actions')!.getBoundingClientRect().top);
-    const pad = portrait ? Math.max(0, viewport().h - keysTop) : 0;
-    document.documentElement.style.setProperty('--strip-h', `${strip}px`);
-    scene.setInsets(strip / zoom, pad / zoom, true);
+    controls.arrange(room(zoom));
+    insets();
   } else {
     scene.setInsets(0, 0, false);
     if (sideBySide()) hud.style.height = `${document.getElementById('stage')!.offsetHeight}px`;
@@ -277,7 +316,6 @@ window.addEventListener(
   },
   { once: true, passive: true },
 );
-touchControls(keys, () => run.togglePause());
 document.addEventListener('visibilitychange', () => {
   run.hidden = document.hidden;
   sound.setHidden(document.hidden);
@@ -302,7 +340,7 @@ function intro(): void {
 <p class="how">Dig down. Every level has one golden <b>#</b>:<br>touch it to mine the level.</p>
 <p class="how">Orange coins are fees: the <b>#</b> pays them out.<br>Mine levels in a row to grow your chain.</p>
 <p class="how">Power drains: grab <b>⚡</b>. A red <b>!</b> means<br>something above you is about to fall.</p>
-<p class="how">D-pad: move and dig. There's no way back up.</p>
+<p class="how">D-pad: move and dig. There's no way back up.<br>Hold its centre to drag it where you like.</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
 <p class="blink">TAP TO START</p>`);
     return;
