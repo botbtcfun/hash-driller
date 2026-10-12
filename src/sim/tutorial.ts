@@ -63,6 +63,11 @@ const MINED_TICKS = 90;
 export class Tutorial {
   lesson: Lesson = 'dig';
   waiting = true;
+  /**
+   * A lesson began while the bot was on the move: the mine stands still once
+   * it comes to rest, not before, or it would hang between two cells.
+   */
+  private settling = false;
   private minedAt = 0;
 
   /** The keys let through to the game now. */
@@ -75,15 +80,26 @@ export class Tutorial {
     if (this.waiting && fresh & this.allowed) this.waiting = false;
   }
 
-  /** After each tick: moves to the next lesson once this one is done. Returns whether it did. */
-  tick(game: Game): boolean {
+  /**
+   * After each tick, with the input it had: moves to the next lesson once this
+   * one is done. Returns whether it did.
+   */
+  tick(game: Game, input: number): boolean {
     const next = this.next(game);
-    if (!next) return false;
-    this.lesson = next;
-    // Only the celebration of the mined level runs on by itself.
-    this.waiting = next !== 'mined';
-    if (next === 'mined') this.minedAt = game.tick;
-    return true;
+    if (next) {
+      this.lesson = next;
+      // Only the celebration of the mined level runs on by itself, and the last screen covers the mine.
+      this.settling = next !== 'mined' && next !== 'done';
+      this.waiting = next === 'done';
+      if (next === 'mined') this.minedAt = game.tick;
+    }
+    // Already pressing what the new lesson asks for: no need to stop.
+    if (this.settling && input & this.allowed) this.settling = false;
+    if (this.settling && game.bot.action === 'idle') {
+      this.settling = false;
+      this.waiting = true;
+    }
+    return !!next;
   }
 
   private next(game: Game): Lesson | null {

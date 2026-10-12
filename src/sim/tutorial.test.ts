@@ -16,8 +16,9 @@ function play(): { game: Game; tutorial: Tutorial; seen: Lesson[] } {
   for (let t = 0; t < 60 * 120 && tutorial.lesson !== 'done'; t++) {
     const key = KEY[tutorial.lesson] ?? DOWN;
     tutorial.press(key);
+    if (tutorial.waiting) continue;
     game.step(key & tutorial.allowed);
-    if (tutorial.tick(game)) seen.push(tutorial.lesson);
+    if (tutorial.tick(game, key & tutorial.allowed)) seen.push(tutorial.lesson);
   }
   return { game, tutorial, seen };
 }
@@ -52,11 +53,48 @@ describe('tutorial', () => {
     while (tutorial.lesson !== 'loose') {
       const key = KEY[tutorial.lesson]!;
       tutorial.press(key);
-      game.step(key);
-      tutorial.tick(game);
+      game.step(key & tutorial.allowed);
+      tutorial.tick(game, key & tutorial.allowed);
     }
     for (let t = 0; t < 120; t++) game.step(0);
     expect(game.lives).toBe(2);
+  });
+
+  it('stands still for each lesson with the bot at rest, not between two cells', () => {
+    const game = tutorialGame();
+    const tutorial = new Tutorial();
+    const stops: string[] = [];
+    let holding = tutorial.lesson;
+    for (let t = 0; t < 60 * 60 && tutorial.lesson !== 'mined'; t++) {
+      // A player reading the coach presses the key it asks for, and lets go when the lesson changes.
+      if (tutorial.waiting) {
+        holding = tutorial.lesson;
+        tutorial.press(KEY[holding]!);
+      }
+      const input = tutorial.lesson === holding ? KEY[holding]! & tutorial.allowed : 0;
+      game.step(input);
+      tutorial.tick(game, input);
+      const { bot } = game;
+      if (tutorial.waiting) stops.push(`${tutorial.lesson}:${bot.action}:${bot.x === bot.fromX && bot.y === bot.fromY}`);
+    }
+    expect(stops).toEqual(['cell:idle:true', 'fee:idle:true', 'loose:idle:true', 'level:idle:true', 'nonce:idle:true']);
+  });
+
+  it('keeps going into a lesson already pressing its key', () => {
+    const game = tutorialGame();
+    const tutorial = new Tutorial();
+    tutorial.press(DOWN);
+    // Holding ↓ then → together: once the dig lesson ends, → goes on at once.
+    for (let t = 0; t < 600 && tutorial.lesson === 'dig'; t++) {
+      game.step((DOWN | RIGHT) & tutorial.allowed);
+      tutorial.tick(game, (DOWN | RIGHT) & tutorial.allowed);
+    }
+    for (let t = 0; t < 10; t++) {
+      game.step((DOWN | RIGHT) & tutorial.allowed);
+      tutorial.tick(game, (DOWN | RIGHT) & tutorial.allowed);
+    }
+    expect(tutorial.lesson).toBe('cell');
+    expect(tutorial.waiting).toBe(false);
   });
 
   it('generates the rows after its own as the plain mine would', () => {

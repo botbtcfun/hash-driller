@@ -107,7 +107,7 @@ class Run implements Session {
     if (t) input &= t.allowed;
     this.log.push(input);
     this.game.step(input);
-    if (t?.tick(this.game) && t.lesson === 'done') this.graduate();
+    if (t?.tick(this.game, input) && t.lesson === 'done') this.graduate();
   }
 
   onEvents(events: GameEvent[]): void {
