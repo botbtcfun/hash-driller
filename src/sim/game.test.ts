@@ -17,6 +17,16 @@ function run(game: Game, ticks: number, input = 0): GameEvent[] {
   return events;
 }
 
+/** Taps a key: pressed one tick in every `every`, for `ticks` ticks, returning every event. */
+function tap(game: Game, ticks: number, key: number, every: number): GameEvent[] {
+  const events: GameEvent[] = [];
+  for (let t = 0; t < ticks; t++) {
+    game.step(t % every === 0 ? key : 0);
+    events.push(...game.events);
+  }
+  return events;
+}
+
 /** What a cell holds, as fromRows writes it, and whether it is moving. */
 function at(game: Game, x: number, y: number): string {
   const g = game.grid;
@@ -166,7 +176,7 @@ describe('gravity', () => {
     expect([at(game, 1, 2), game.lives]).toEqual(['.', R.LIVES]);
   });
 
-  it('smashes a whole stack coming down with one ↑ as it arrives', () => {
+  it('breaks a stack coming down a piece a tap, holding it up on the drill meanwhile', () => {
     const game = Game.fromRows([
       '222222...', //
       '111111...',
@@ -174,19 +184,28 @@ describe('gravity', () => {
       '..@......',
       '333333333',
     ]);
-    let pressed = false;
-    for (let t = 0; t < 200; t++) {
-      const above = game.grid.kindAt(game.bot.x, game.bot.y - 1) !== EMPTY;
-      game.step(above && !pressed ? UP : 0);
-      pressed ||= above;
-    }
-    expect(game.lives).toBe(R.LIVES);
+    const events = tap(game, 200, UP, 8);
+    expect(events.some((e) => e.type === 'die')).toBe(false);
     expect([at(game, 2, 1), at(game, 2, 0)]).toEqual(['.', '.']);
   });
 
-  it('braces with ↑ pressed early, and smashes what comes down as it arrives', () => {
+  it('lets the rest of a stack fall on the bot that stops tapping', () => {
     const game = Game.fromRows([
       '222222...', //
+      '111111...',
+      '.........',
+      '..@......',
+      '333333333',
+    ]);
+    // One press, early: it braces and breaks the first piece, and that's all.
+    run(game, 1, UP);
+    const events = run(game, 200, UP);
+    expect(events).toContainEqual({ type: 'die', cause: 'crush' });
+  });
+
+  it('braces with ↑ pressed early, and hits what comes down as it arrives', () => {
+    const game = Game.fromRows([
+      '.........', //
       '111111...',
       '.........',
       '..@......',
@@ -211,15 +230,20 @@ describe('gravity', () => {
     expect(game.braced).toBe(false);
   });
 
-  it('still crushes the bot under falling hard rock, braced or not', () => {
-    const game = Game.fromRows([
+  it('breaks falling hard rock only with quick taps, and is crushed by it otherwise', () => {
+    const rows = [
       '..#......', //
       '.........',
       '..@......',
       '333333333',
-    ]);
-    const events = run(game, 1, UP).concat(run(game, 200));
-    expect(events).toContainEqual({ type: 'die', cause: 'crush' });
+    ];
+    const once = Game.fromRows(rows);
+    const crushed = run(once, 1, UP).concat(run(once, 200));
+    expect(crushed).toContainEqual({ type: 'die', cause: 'crush' });
+    const quick = Game.fromRows(rows);
+    const broken = tap(quick, 200, UP, 8);
+    expect(broken).toContainEqual(expect.objectContaining({ type: 'rock', broken: true }));
+    expect(broken.some((e) => e.type === 'die')).toBe(false);
   });
 
   it('crushes the bot under a falling block', () => {

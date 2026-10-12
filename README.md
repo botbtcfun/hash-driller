@@ -24,7 +24,7 @@ can skip it, and replay it from HOW TO PLAY on the start screen.
 | Key | |
 |---|---|
 | ← → | Move, dig what's in the way, or climb onto steel |
-| ↓ / ↑ | Dig down / dig up. Pressed while something comes down on you, ↑ waits for it and smashes the lot, unless it's hard rock |
+| ↓ / ↑ | Dig down / dig up. Each tap of ↑ hits a piece coming down on you and holds the rest up a moment: tap fast to break a whole stack, even hard rock |
 | ↑ where it's open | Jump; ← or → in the air lands on a ledge. One step up at most: there's no way back up |
 | P | Pause |
 | R | Restart |

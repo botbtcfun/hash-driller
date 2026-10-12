@@ -123,8 +123,10 @@ export class Game {
   private lastInput = 0;
   /** The deepest row the bot has been on: it never gets more than a row above it. */
   private deepest = 0;
-  /** ↑ pressed with something coming down: the bot waits, drill up, to smash it as it arrives. */
+  /** ↑ pressed with something coming down: the bot waits, drill up, to hit it as it arrives. */
   braced = false;
+  /** Until this tick, what's right above the bot rests on its drill instead of falling on it. */
+  private propUntil = -1;
   private deathTimer = 0;
   private minedLayers = new Set<number>();
   /** Cells that landed this tick, as y * WIDTH + x, with their bodies' combo levels. */
@@ -259,7 +261,7 @@ export class Game {
       mix(b.timer);
     }
     const bot = this.bot;
-    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.deepest, +this.braced, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
+    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.deepest, +this.braced, this.propUntil, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
     return h >>> 0;
   }
 
@@ -292,16 +294,19 @@ export class Game {
       return;
     }
 
-    // A press kept from while busy counts as fresh.
+    // A press kept from while busy counts as fresh, even with the key still held.
     let up = fresh & UP;
-    if (!input && this.bufferAge < R.BUFFER_TICKS) up = input = this.buffer;
+    if (this.bufferAge < R.BUFFER_TICKS) {
+      up |= this.buffer & UP;
+      if (!input) input = this.buffer;
+    }
     this.buffer = 0;
     this.bufferAge = R.BUFFER_TICKS;
 
     const lr = (input & LEFT ? -1 : 0) + (input & RIGHT ? 1 : 0);
     if (lr !== 0) bot.facing = lr < 0 ? -1 : 1;
 
-    // Braced: smash what's coming the moment it's right above. Moving or digging down lets go.
+    // Braced: hit what's coming the moment it's right above. Moving or digging down lets go.
     if (this.braced) {
       if (input & (DOWN | LEFT | RIGHT) || !this.coming(bot.x, bot.y)) this.braced = false;
       else {
@@ -315,8 +320,12 @@ export class Game {
 
     if (input & DOWN) this.drill('down');
     else if (input & UP) {
-      // ↑ digs up what's above. Where it's open, it braces for what's coming down, or else a fresh ↑ jumps.
-      if (this.free(bot.x, bot.y - 1) && this.coming(bot.x, bot.y)) this.braced = true;
+      // ↑ digs up what's above. A piece coming down takes a fresh press a hit, so
+      // holding ↑ is no shield. Where it's open, ↑ braces for what's coming, or
+      // else a fresh ↑ jumps.
+      if (this.moving(bot.x, bot.y - 1)) {
+        if (up & UP) this.drill('up');
+      } else if (this.free(bot.x, bot.y - 1) && this.coming(bot.x, bot.y)) this.braced = true;
       else if (up & UP && this.canHop()) this.hop();
       else this.drill('up');
     } else if (lr !== 0) this.walk(lr);
@@ -328,23 +337,7 @@ export class Game {
     return !!body && body.state !== POP;
   }
 
-  /**
-   * Dug up into a piece coming down, the bot smashes everything coming down
-   * stacked on it in its column too, so a collapse is one press of ↑, not a
-   * race. Hard rock stops it: that takes more than one hit.
-   */
-  private smashAbove(x: number, y: number): Bit[] {
-    const g = this.grid;
-    const bits: Bit[] = [];
-    for (let yy = y - 1; this.moving(x, yy); yy--) {
-      const k = g.kindAt(x, yy);
-      if (k === COLOR) bits.push(...this.component(x, yy));
-      else if (k === STONE) bits.push({ x, y: yy, kind: STONE, color: 0 });
-      else break;
-      for (const bit of bits) g.clear(bit.x, bit.y);
-    }
-    return bits;
-  }
+
 
   /** Never more than a row above the deepest point: a jump is a step up, never a way back up. */
   private canHop(): boolean {
@@ -451,11 +444,12 @@ export class Game {
     const b = g.bodyAt(x, y);
     // Wobbling and falling pieces can be dug, so a quick ↑ saves the bot. Popping ones are going anyway.
     if (b !== 0 && this.bodies.get(b)?.state === POP) return;
+    // A hit on a piece coming down holds up whatever is right above for a moment.
+    if (b !== 0 && dir === 'up') this.propUntil = this.tick + R.PROP_TICKS;
 
     if (k === COLOR || k === STONE) {
       const bits = k === COLOR ? this.component(x, y) : [{ x, y, kind: STONE, color: 0 }];
       for (const bit of bits) g.clear(bit.x, bit.y);
-      if (b !== 0 && dir === 'up') bits.push(...this.smashAbove(x, y));
       this.sats += R.DRILL_SATS * bits.length;
       this.events.push({ type: 'drill', bits });
     } else if (k === ROCK) {
@@ -809,6 +803,8 @@ export class Game {
     }
     let landed = false;
     for (const [id, cells] of falling) {
+      // Held up on the bot's drill: neither falling on nor landing yet.
+      if (this.tick <= this.propUntil && this.bot.action !== 'dead' && cells.includes((this.bot.y - 1) * W + this.bot.x)) continue;
       const free = cells.every((p) => {
         const x = p % W;
         const below = (p - x) / W + 1;
