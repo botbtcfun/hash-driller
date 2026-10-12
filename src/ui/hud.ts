@@ -86,8 +86,9 @@ export class Hud {
     el.addEventListener('animationend', () => el.remove());
     const banner = $('banner');
     banner.append(el);
-    // At most three at once: the oldest go first.
-    while (banner.children.length > 3) banner.firstElementChild!.remove();
+    // At most three at once: the oldest go first. The tutorial's coach stays.
+    const toasts = banner.querySelectorAll('.toast');
+    for (let i = 0; i < toasts.length - 3; i++) toasts[i]!.remove();
   }
 
   overlay(html: string | null): void {
@@ -96,9 +97,10 @@ export class Hud {
     el.innerHTML = html ?? '';
   }
 
-  gameOver(game: Game): void {
+  /** The last screen of a run; `more` goes under it, such as the home screen button. */
+  gameOver(game: Game, more = ''): void {
     this.overlay(
-      `<h2>GAME OVER</h2><p><span class="coin">${sats(game.sats)} SATS</span><br>${game.mined} OF ${game.mined + game.missed} LEVELS MINED<br>LONGEST CHAIN ${game.maxChain} · ${game.depth} m</p><p>${isTouch() ? 'TAP TO PLAY AGAIN' : 'PRESS R OR TAP'}</p>`,
+      `<h2>GAME OVER</h2><p><span class="coin">${sats(game.sats)} SATS</span><br>${game.mined} OF ${game.mined + game.missed} LEVELS MINED<br>LONGEST CHAIN ${game.maxChain} · ${game.depth} m</p><p>${isTouch() ? 'TAP TO PLAY AGAIN' : 'PRESS R OR TAP'}</p>${more}`,
     );
   }
 }

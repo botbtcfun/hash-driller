@@ -19,6 +19,8 @@ const DEPTH = { bg: -1, cells: 0, labels: 1, glow: 2, stars: 3, drill: 4, bot: 5
 export interface Session {
   readonly game: Game;
   readonly paused: boolean;
+  /** Game time per real time: slower in the tutorial. */
+  readonly speed: number;
   step(input: number): void;
   /** After each tick with events, and once a frame. */
   onEvents(events: GameEvent[]): void;
@@ -138,8 +140,9 @@ export class PlayScene extends Phaser.Scene {
   override update(_time: number, delta: number): void {
     const s = this.session;
     if (!s.paused) {
-      this.acc += Math.min(delta, 100);
-      while (this.acc >= TICK_MS) {
+      this.acc += Math.min(delta, 100) * s.speed;
+      // A tick can pause the session, as the tutorial does to wait for a press.
+      while (!s.paused && this.acc >= TICK_MS) {
         this.acc -= TICK_MS;
         s.step(this.keys.sample());
         const events = s.game.events;

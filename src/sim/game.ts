@@ -1,4 +1,4 @@
-import { CELL, COLOR, EMPTY, FEE, GROUND, Grid, HEADER, NONCE, ROCK, WALL, isItem } from './grid';
+import { CELL, COLOR, EMPTY, FEE, GROUND, Grid, HEADER, NONCE, ROCK, WALL, isItem, parseRow } from './grid';
 import { Mine, headerY } from './layers';
 import { isqrt } from './rng';
 import * as R from './rules';
@@ -153,24 +153,12 @@ export class Game {
   static fromRows(rows: string[]): Game {
     const game = new Game(null, 0, 0);
     for (const [y, line] of rows.entries()) {
-      const kind = new Uint8Array(W);
-      const color = new Uint8Array(W);
-      for (let x = 0; x < W; x++) {
-        const ch = line[x] ?? '.';
-        if (ch >= '0' && ch <= '3') {
-          kind[x] = COLOR;
-          color[x] = Number(ch);
-        } else if (ch === '#') kind[x] = ROCK;
-        else if (ch === '+') kind[x] = CELL;
-        else if (ch === '=') kind[x] = HEADER;
-        else if (ch === 'N') kind[x] = NONCE;
-        else if (ch === '$') kind[x] = FEE;
-        else if (ch === '@') {
-          game.bot.x = game.bot.fromX = x;
-          game.bot.y = game.bot.fromY = y;
-        }
+      const x = line.indexOf('@');
+      if (x >= 0) {
+        game.bot.x = game.bot.fromX = x;
+        game.bot.y = game.bot.fromY = y;
       }
-      game.grid.push({ kind, color });
+      game.grid.push(parseRow(line));
     }
     game.settle();
     return game;

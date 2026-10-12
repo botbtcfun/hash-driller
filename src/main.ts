@@ -12,7 +12,10 @@ import { Game, type GameEvent } from './sim/game';
 import { Mine } from './sim/layers';
 import { InputLog } from './sim/replay';
 import { VIEW_ABOVE, WIDTH } from './sim/rules';
+import { TUTORIAL_ROWS, Tutorial } from './sim/tutorial';
+import { Coach } from './ui/coach';
 import { Hud, isTouch } from './ui/hud';
+import { Install } from './ui/install';
 import { type Room, TouchControls } from './ui/touch';
 
 const WIDTH_PX = WIDTH * TILE;
@@ -24,68 +27,136 @@ const LANDSCAPE_ROWS = 12;
 const IOS_BAR_PX = 96;
 /** The UTC day: one mine per day, the same for everyone. */
 const day = Math.floor(Date.now() / 86_400_000);
+/** The tutorial plays at this share of full speed, for time to think. */
+const TUTORIAL_SPEED = 0.6;
+const LEARNT_KEY = 'hash-driller:tutorial';
 
 const hud = new Hud();
 const keys = new Input();
 const sound = new Sound();
+const install = new Install();
+
+/** Whether this browser has been through the tutorial, or skipped it. */
+function learnt(): boolean {
+  try {
+    return localStorage.getItem(LEARNT_KEY) === 'done';
+  } catch {
+    return false;
+  }
+}
+
+function learn(): void {
+  try {
+    localStorage.setItem(LEARNT_KEY, 'done');
+  } catch {
+    // Storage can be blocked; the tutorial then comes first on each visit.
+  }
+}
+
+const tap = () => (isTouch() ? 'TAP' : 'PRESS ANY KEY');
 
 class Run implements Session {
   game = new Game(new Mine({ seed: `day:${day}`, layers: [] }));
   log = new InputLog();
+  /** The tutorial's lessons, while it runs. */
+  tutorial: Tutorial | null = null;
   pausedByUser = false;
   hidden = false;
   started = false;
 
   get paused(): boolean {
-    return !this.started || this.pausedByUser || this.hidden || this.game.over;
+    return !this.started || this.pausedByUser || this.hidden || this.game.over || !!this.tutorial?.waiting;
   }
 
+  get speed(): number {
+    return this.tutorial ? TUTORIAL_SPEED : 1;
+  }
+
+  /** The tutorial is over, and its last screen is up. */
+  get graduated(): boolean {
+    return this.tutorial?.lesson === 'done';
+  }
+
+  /** From the start screen: the tutorial the first time, then today's mine. */
   start(): void {
+    this.begin(!learnt());
+  }
+
+  /** Starts the tutorial, or today's mine. */
+  begin(tutorial: boolean): void {
     this.started = true;
-    keys.reset();
-    hud.overlay(null);
-    sound.unlock();
-    sound.start();
-  }
-
-  step(input: number): void {
-    this.log.push(input);
-    this.game.step(input);
-  }
-
-  onEvents(events: GameEvent[]): void {
-    hud.events(events, this.game);
-    sound.events(events);
-    if (this.game.over) hud.gameOver(this.game);
-  }
-
-  onFrame(): void {
-    hud.update(this.game);
-    sound.frame(this.game, this.pausedByUser || this.hidden);
-  }
-
-  onHint(hint: 'loose'): void {
-    if (hint === 'loose') hud.toast('<b>LOOK OUT!</b><br>SOMETHING ABOVE YOU CAME LOOSE.<br>STEP ASIDE, OR DIG IT WITH ↑.', true);
-  }
-
-  restart(): void {
-    this.game = new Game(new Mine({ seed: `day:${day}`, layers: [] }));
+    this.tutorial = tutorial ? new Tutorial() : null;
+    this.game = new Game(new Mine(tutorial ? { seed: 'tutorial', layers: [], rows: TUTORIAL_ROWS } : { seed: `day:${day}`, layers: [] }));
     this.log = new InputLog();
     this.pausedByUser = false;
     keys.reset();
     scene.reset();
     hud.overlay(null);
+    sound.unlock();
+    sound.start();
+  }
+
+  skip(): void {
+    learn();
+    this.begin(false);
+  }
+
+  step(input: number): void {
+    const t = this.tutorial;
+    // In the tutorial, only what the lesson is about gets through.
+    if (t) input &= t.allowed;
+    this.log.push(input);
+    this.game.step(input);
+    if (t?.tick(this.game) && t.lesson === 'done') this.graduate();
+  }
+
+  onEvents(events: GameEvent[]): void {
+    hud.events(events, this.game);
+    sound.events(events);
+    if (!this.game.over) return;
+    if (this.tutorial) hud.overlay(`<h2>OUT OF LIVES</h2><p>${tap()} TO TRY AGAIN</p><p><button type="button" data-act="skip">SKIP THE TUTORIAL</button></p>`);
+    else hud.gameOver(this.game, install.button());
+  }
+
+  onFrame(): void {
+    const t = this.tutorial;
+    // The tutorial waits for the press its lesson asks for.
+    if (t?.waiting && !this.pausedByUser && !this.hidden) t.press(keys.fresh());
+    coach.show(t && !this.game.over ? t.lesson : null, !!t?.waiting);
+    hud.update(this.game);
+    sound.frame(this.game, this.pausedByUser || this.hidden);
+  }
+
+  onHint(hint: 'loose'): void {
+    // The tutorial has its own lesson for it.
+    if (hint === 'loose' && !this.tutorial) hud.toast('<b>LOOK OUT!</b><br>SOMETHING ABOVE YOU CAME LOOSE.<br>STEP ASIDE, OR DIG IT WITH ↑.', true);
+  }
+
+  restart(): void {
+    this.begin(!!this.tutorial && !this.graduated);
   }
 
   togglePause(): void {
-    if (this.game.over || !this.started) return;
+    if (this.game.over || !this.started || this.graduated) return;
     this.pausedByUser = !this.pausedByUser;
-    hud.overlay(this.pausedByUser ? `<h2>PAUSED</h2><p>${isTouch() ? 'TAP TO PLAY' : 'P TO PLAY'}</p>` : null);
+    hud.overlay(this.pausedByUser ? `<h2>PAUSED</h2><p>${isTouch() ? 'TAP TO PLAY' : 'P TO PLAY'}</p>${install.button()}` : null);
+  }
+
+  /** The tutorial's last screen: what's left to know, then today's mine. */
+  private graduate(): void {
+    learn();
+    hud.overlay(`<h2>READY TO DIG!</h2>
+<p class="how">That's the game: dig down level by level,<br>and mine each level's golden <b>#</b>.</p>
+<p class="how">Mine levels in a row to grow your chain:<br>each pays more. Pass a <b>LEVEL</b> line<br>without its <b>#</b> and the chain breaks.</p>
+<p class="how">Deeper down the <b>#</b> hides further from<br>the line: the arrow points to it.<br>And a loose block? You can also step aside.</p>
+<p class="how dim">From here on, it's full speed.<br>One new mine a day, the same for everyone.</p>
+<p class="blink">${tap()} TO PLAY TODAY'S MINE</p>`);
   }
 }
 
 const run = new Run();
 const scene = new PlayScene(run, keys);
+const coach = new Coach(() => run.skip());
 const controls = new TouchControls(keys, () => run.togglePause(), insets);
 
 // Canvas text needs the pixel font loaded before it is first drawn.
@@ -334,6 +405,16 @@ for (const id of ['sound', 'sound-pad']) {
 }
 
 function intro(): void {
+  // The first time, the tutorial explains as you play.
+  if (!learnt()) {
+    hud.overlay(`<h2>HASH DRILLER</h2>
+<p class="how">Dig down level by level,<br>and mine each level's golden <b>#</b>.</p>
+<p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
+<p class="blink">${tap()} TO START</p>
+<p class="how dim">A short, slow tutorial comes first.</p>`);
+    return;
+  }
+  const more = `<p class="more"><button type="button" data-act="tutorial">HOW TO PLAY</button>${install.button()}</p>`;
   if (isTouch()) {
     // A phone gets the short version: the shaft says the rest as you play.
     hud.overlay(`<h2>HASH DRILLER</h2>
@@ -342,7 +423,7 @@ function intro(): void {
 <p class="how">Power drains: grab <b>⚡</b>. A red <b>!</b> means<br>something above you is about to fall.</p>
 <p class="how">D-pad: move and dig. There's no way back up.<br>Hold its centre to drag it where you like.</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
-<p class="blink">TAP TO START</p>`);
+<p class="blink">TAP TO START</p>${more}`);
     return;
   }
   const controls = '← → ↓ ↑ move and dig. There\'s no way back up.';
@@ -353,7 +434,7 @@ function intro(): void {
 <p class="how">Power drains: grab <b>⚡</b> cells.<br>Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or dig it away with ↑ just in time.</p>
 <p class="how">${controls}</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
-<p class="blink">PRESS ANY KEY</p>`);
+<p class="blink">PRESS ANY KEY</p>${more}`);
 }
 intro();
 // The game is up: the loading screen goes, and the music renders while the intro is read.
@@ -361,8 +442,10 @@ document.getElementById('loading')?.remove();
 setTimeout(() => void sound.prepare(), 300);
 
 window.addEventListener('keydown', (e) => {
-  if (!run.started) {
-    if (!e.metaKey && !e.ctrlKey && !e.altKey) run.start();
+  if (!run.started || run.graduated) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (run.graduated) run.begin(false);
+    else run.start();
     return;
   }
   if (e.code === 'KeyM') toggleSound();
@@ -370,8 +453,13 @@ window.addEventListener('keydown', (e) => {
   else if (e.code === 'KeyP' || e.code === 'Escape') run.togglePause();
 });
 // A click, not a pointerdown: on phones only the end of a tap may start sound.
-document.getElementById('overlay')!.addEventListener('click', () => {
-  if (!run.started) run.start();
+document.getElementById('overlay')!.addEventListener('click', (e) => {
+  const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
+  if (act === 'tutorial') run.begin(true);
+  else if (act === 'skip') run.skip();
+  else if (act === 'install') void install.ask();
+  else if (!run.started) run.start();
+  else if (run.graduated) run.begin(false);
   else if (run.game.over) run.restart();
   else if (run.pausedByUser) run.togglePause();
 });
@@ -381,4 +469,4 @@ document.addEventListener('pointerup', () => {
 });
 
 // For checking the game from the browser console while developing.
-if (import.meta.env.DEV) Object.assign(window, { drill: run, sound });
+if (import.meta.env.DEV) Object.assign(window, { drill: run, sound, phaser: game });

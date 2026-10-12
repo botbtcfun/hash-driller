@@ -14,6 +14,10 @@ block's nonce. Made for Round 01 (games) of
 
 ## Play
 
+The first time, a short tutorial teaches the moves on a mine made for it,
+at a slower speed: each lesson waits until you press what it asks for. You
+can skip it, and replay it from HOW TO PLAY on the start screen.
+
 | Key | |
 |---|---|
 | ← → | Move, or dig what's in the way |
@@ -28,6 +32,11 @@ thumb across floats at the bottom. Hold its centre to drag it where you like:
 it stays there, and the pause and sound buttons move to the corner it leaves
 clear. In landscape the controls sit either side of the shaft. Add `?debug` to
 the address to see what the browser reports about the screen.
+
+It can be added to the home screen, to open full screen like an app. On
+Android the ADD TO HOME SCREEN button asks the browser to install it; on iOS,
+where only the share sheet can, the button shows how. The icons are drawn
+from the bot's pixel grid by the build, like the favicon.
 
 ## Run it
 

@@ -262,6 +262,194 @@ body {
   font-weight: normal;
 }
 
+/* Buttons on a screen: how to play, add to home screen. */
+#overlay button,
+.sheet button {
+  padding: 10px 12px;
+  font-family: var(--pixel);
+  font-size: 9px;
+  color: var(--ink);
+  background: var(--panel);
+  border: 2px solid var(--base-hi);
+  box-shadow: inset -3px -3px 0 var(--bg);
+  cursor: pointer;
+}
+
+#overlay button:hover,
+.sheet button:hover {
+  border-color: var(--coin);
+}
+
+#overlay .install {
+  border-color: var(--coin);
+  color: var(--coin);
+}
+
+#overlay .more {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* The tutorial's coach, over the top of the shaft. */
+#banner .coach {
+  max-width: min(94%, 440px);
+  padding: 6px 12px 10px;
+  font-family: var(--crt);
+  font-size: 20px;
+  line-height: 1.15;
+  text-align: center;
+  background: rgba(0, 8, 28, 0.92);
+  border: 2px solid var(--coin);
+  pointer-events: auto;
+}
+
+#banner .coach.new {
+  animation: coach 0.3s ease-out;
+}
+
+/* Where the shaft is short, the coach and the banners go to the bottom of
+   it, clear of the bot and what's above it. A phone held upright has room
+   between the strip and the bot. */
+body:not(.touch) #banner:has(.coach),
+body.touch.landscape #banner:has(.coach) {
+  top: auto;
+  bottom: 12px;
+  flex-direction: column-reverse;
+}
+
+#banner .coach p {
+  margin: 0;
+}
+
+#banner .coach .coach-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 6px;
+  font-family: var(--pixel);
+  font-size: 8px;
+  color: var(--dim);
+}
+
+#banner .coach .skip {
+  padding: 4px 0 4px 8px;
+  font: inherit;
+  color: var(--dim);
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+#banner .coach b {
+  color: var(--coin);
+  font-weight: normal;
+}
+
+#banner .coach em {
+  color: var(--lose);
+  font-style: normal;
+}
+
+#banner .coach kbd {
+  display: inline-block;
+  min-width: 1.3em;
+  padding: 0 3px;
+  font-family: inherit;
+  line-height: 1;
+  color: var(--ink);
+  background: var(--panel);
+  border: 2px solid var(--base-hi);
+}
+
+/* The key the mine is waiting for. */
+#banner .coach.waiting kbd {
+  animation: press 0.9s steps(2) infinite;
+}
+
+@keyframes press {
+  50% {
+    color: var(--bg);
+    background: var(--coin);
+    border-color: var(--coin);
+  }
+}
+
+@keyframes coach {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* How to add the game to the home screen, by hand. */
+.sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 8, 28, 0.8);
+}
+
+.sheet[hidden] {
+  display: none;
+}
+
+.sheet-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  max-width: 360px;
+  padding: 20px 16px;
+  text-align: center;
+  background: var(--bg);
+  border: 3px solid var(--coin);
+}
+
+.sheet h2 {
+  margin: 0;
+  font-family: var(--pixel);
+  font-size: 13px;
+  color: var(--coin);
+}
+
+.sheet .how {
+  margin: 0;
+  font-family: var(--crt);
+  font-size: 20px;
+  line-height: 1.2;
+}
+
+.sheet ol {
+  padding-left: 1.4em;
+  text-align: left;
+}
+
+.sheet li + li {
+  margin-top: 8px;
+}
+
+.sheet b {
+  color: var(--coin);
+  font-weight: normal;
+}
+
+.sheet .dim {
+  color: var(--dim);
+}
+
+.sheet .icon {
+  width: 0.8em;
+  height: 0.95em;
+  vertical-align: -0.1em;
+}
+
 .blink {
   animation: blink 1s steps(2) infinite;
 }

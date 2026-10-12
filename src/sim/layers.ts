@@ -1,4 +1,4 @@
-import { CELL, COLOR, FEE, HEADER, NONCE, ROCK, type Row } from './grid';
+import { CELL, COLOR, FEE, HEADER, NONCE, ROCK, type Row, parseRow } from './grid';
 import { Rng } from './rng';
 import {
   CELL_CHANCE,
@@ -40,6 +40,8 @@ export interface MineSpec {
   seed: string;
   /** Layer 1 first. Past the end, layers come from the seed alone. */
   layers: LayerInfo[];
+  /** Rows made by hand, from the top, in place of the generated ones: the tutorial's. */
+  rows?: string[];
 }
 
 /** The row of layer k's header, for k >= 1. */
@@ -75,6 +77,14 @@ export class Mine {
   }
 
   next(): Row {
+    const y = this.y;
+    // Generated even when replaced, so the rows after made ones come out the same.
+    const row = this.generate();
+    const made = this.spec.rows?.[y];
+    return made === undefined ? row : parseRow(made, layerAt(y));
+  }
+
+  private generate(): Row {
     const y = this.y++;
     const kind = new Uint8Array(WIDTH);
     const color = new Uint8Array(WIDTH);

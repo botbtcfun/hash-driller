@@ -30,7 +30,8 @@ export class Input {
       e.preventDefault();
       this.codes.set(e.code, bit);
       this.held |= bit;
-      this.tapped |= bit;
+      // A key held down repeats; only the first press is a tap.
+      if (!e.repeat) this.tapped |= bit;
     });
     target.addEventListener('keyup', (e) => {
       if (!this.codes.delete(e.code)) return;
@@ -45,6 +46,11 @@ export class Input {
     const before = this.touchHeld;
     this.touchHeld = (before & ~group) | (bits & group);
     this.tapped |= this.touchHeld & ~before;
+  }
+
+  /** Presses made since the last tick, without using them up: for screens waiting for one. */
+  fresh(): number {
+    return this.tapped;
   }
 
   /** This tick's mask. */

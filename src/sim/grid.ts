@@ -25,6 +25,31 @@ export interface Row {
 }
 
 /**
+ * A row drawn as text: '.' is empty, 0-3 a colour, '#' hard rock, '+' a
+ * power cell, '$' a fee, 'N' a nonce of layer `layer` and '=' a header tile.
+ * Anything else, such as the bot's '@', is empty.
+ */
+export function parseRow(line: string, layer = 0): Row {
+  const kind = new Uint8Array(WIDTH);
+  const color = new Uint8Array(WIDTH);
+  for (let x = 0; x < WIDTH; x++) {
+    const ch = line[x] ?? '.';
+    if (ch >= '0' && ch <= '3') {
+      kind[x] = COLOR;
+      color[x] = Number(ch);
+    } else if (ch === '#') kind[x] = ROCK;
+    else if (ch === '+') kind[x] = CELL;
+    else if (ch === '$') kind[x] = FEE;
+    else if (ch === '=') kind[x] = HEADER;
+    else if (ch === 'N') {
+      kind[x] = NONCE;
+      color[x] = layer & 0xff;
+    }
+  }
+  return { kind, color };
+}
+
+/**
  * Rows [top, bottom) of the shaft, in a ring buffer indexed by absolute row.
  * Above top is air. From bottom down is ground that is not generated yet.
  */
