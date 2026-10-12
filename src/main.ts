@@ -433,7 +433,7 @@ function intro(): void {
 <p class="how">Dig down level by level. Every level has<br>one golden ${icon('nonce', '#')}: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
 <p class="how">Grab the orange coins ${icon('fee', '')}: they're fees,<br>and the ${icon('nonce', '#')} pays them out with the level.</p>
 <p class="how">Mine every level to grow your chain:<br>each pays more. Pass the next <b>LEVEL</b> line<br>without its ${icon('nonce', '#')} and the chain breaks,<br>and its fees are lost.</p>
-<p class="how">Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or dig it away with ↑ just in time.</p>
+<p class="how">Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or press ↑ to smash all that comes down.</p>
 <p class="how">Each level brings something new: hard rock,<br>steel, loose stones, bombs. Deeper is harder.</p>
 <p class="how">${controls}</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>

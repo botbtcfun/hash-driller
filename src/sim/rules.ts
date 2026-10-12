@@ -2,7 +2,7 @@
  * Every tunable number in the game. Times are in ticks, 60 a second. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 8;
+export const RULES_VERSION = 9;
 export const TICK_HZ = 60;
 
 // The shaft

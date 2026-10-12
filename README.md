@@ -24,7 +24,7 @@ can skip it, and replay it from HOW TO PLAY on the start screen.
 | Key | |
 |---|---|
 | ← → | Move, dig what's in the way, or climb onto steel |
-| ↓ / ↑ | Dig down / dig up, even a piece falling onto you |
+| ↓ / ↑ | Dig down / dig up. Pressed while something comes down on you, ↑ waits for it and smashes the lot, unless it's hard rock |
 | ↑ where it's open | Jump; ← or → in the air lands on a ledge. One step up at most: there's no way back up |
 | P | Pause |
 | R | Restart |

@@ -123,6 +123,8 @@ export class Game {
   private lastInput = 0;
   /** The deepest row the bot has been on: it never gets more than a row above it. */
   private deepest = 0;
+  /** ↑ pressed with something coming down: the bot waits, drill up, to smash it as it arrives. */
+  braced = false;
   private deathTimer = 0;
   private minedLayers = new Set<number>();
   /** Cells that landed this tick, as y * WIDTH + x, with their bodies' combo levels. */
@@ -257,7 +259,7 @@ export class Game {
       mix(b.timer);
     }
     const bot = this.bot;
-    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.deepest, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
+    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.deepest, +this.braced, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
     return h >>> 0;
   }
 
@@ -299,12 +301,49 @@ export class Game {
     const lr = (input & LEFT ? -1 : 0) + (input & RIGHT ? 1 : 0);
     if (lr !== 0) bot.facing = lr < 0 ? -1 : 1;
 
+    // Braced: smash what's coming the moment it's right above. Moving or digging down lets go.
+    if (this.braced) {
+      if (input & (DOWN | LEFT | RIGHT) || !this.coming(bot.x, bot.y)) this.braced = false;
+      else {
+        if (this.moving(bot.x, bot.y - 1)) {
+          this.braced = false;
+          this.drill('up');
+        }
+        return;
+      }
+    }
+
     if (input & DOWN) this.drill('down');
     else if (input & UP) {
-      // ↑ digs up what's above; where it's open, a fresh ↑ jumps, unless something is coming down.
-      if (up & UP && this.canHop()) this.hop();
+      // ↑ digs up what's above. Where it's open, it braces for what's coming down, or else a fresh ↑ jumps.
+      if (this.free(bot.x, bot.y - 1) && this.coming(bot.x, bot.y)) this.braced = true;
+      else if (up & UP && this.canHop()) this.hop();
       else this.drill('up');
     } else if (lr !== 0) this.walk(lr);
+  }
+
+  /** A piece wobbling or falling at (x, y). */
+  private moving(x: number, y: number): boolean {
+    const body = this.bodies.get(this.grid.bodyAt(x, y));
+    return !!body && body.state !== POP;
+  }
+
+  /**
+   * Dug up into a piece coming down, the bot smashes everything coming down
+   * stacked on it in its column too, so a collapse is one press of ↑, not a
+   * race. Hard rock stops it: that takes more than one hit.
+   */
+  private smashAbove(x: number, y: number): Bit[] {
+    const g = this.grid;
+    const bits: Bit[] = [];
+    for (let yy = y - 1; this.moving(x, yy); yy--) {
+      const k = g.kindAt(x, yy);
+      if (k === COLOR) bits.push(...this.component(x, yy));
+      else if (k === STONE) bits.push({ x, y: yy, kind: STONE, color: 0 });
+      else break;
+      for (const bit of bits) g.clear(bit.x, bit.y);
+    }
+    return bits;
   }
 
   /** Never more than a row above the deepest point: a jump is a step up, never a way back up. */
@@ -413,9 +452,10 @@ export class Game {
     // Wobbling and falling pieces can be dug, so a quick ↑ saves the bot. Popping ones are going anyway.
     if (b !== 0 && this.bodies.get(b)?.state === POP) return;
 
-    if (k === COLOR) {
-      const bits = this.component(x, y);
+    if (k === COLOR || k === STONE) {
+      const bits = k === COLOR ? this.component(x, y) : [{ x, y, kind: STONE, color: 0 }];
       for (const bit of bits) g.clear(bit.x, bit.y);
+      if (b !== 0 && dir === 'up') bits.push(...this.smashAbove(x, y));
       this.sats += R.DRILL_SATS * bits.length;
       this.events.push({ type: 'drill', bits });
     } else if (k === ROCK) {
@@ -430,9 +470,6 @@ export class Game {
       this.events.push({ type: 'clang', x, y });
       if (!this.trapped()) return;
       g.clear(x, y);
-    } else if (k === STONE) {
-      g.clear(x, y);
-      this.events.push({ type: 'drill', bits: [{ x, y, kind: STONE, color: 0 }] });
     } else if (k === BOMB) {
       const i = g.i(x, y);
       if (g.hits[i] === 0) {

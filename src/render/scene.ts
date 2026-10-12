@@ -240,6 +240,10 @@ export class PlayScene extends Phaser.Scene {
         .setPosition(Math.round(bx) + ox + (bot.drillDir === 'up' || bot.drillDir === 'down' ? 0 : jitter), Math.round(by) + oy + (bot.drillDir === 'up' || bot.drillDir === 'down' ? jitter : 0))
         .setAngle(STEP_ANGLE[bot.drillDir])
         .setVisible(true);
+    } else if (game.braced && !dead) {
+      // Braced: the drill held up and still, waiting for what's coming down.
+      const [ox, oy] = STEP_OFFSET.up;
+      this.drillImg.setPosition(Math.round(bx) + ox, Math.round(by) + oy).setAngle(STEP_ANGLE.up).setVisible(true);
     } else this.drillImg.setVisible(false);
   }
 

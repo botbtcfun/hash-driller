@@ -166,6 +166,62 @@ describe('gravity', () => {
     expect([at(game, 1, 2), game.lives]).toEqual(['.', R.LIVES]);
   });
 
+  it('smashes a whole stack coming down with one ↑ as it arrives', () => {
+    const game = Game.fromRows([
+      '222222...', //
+      '111111...',
+      '.........',
+      '..@......',
+      '333333333',
+    ]);
+    let pressed = false;
+    for (let t = 0; t < 200; t++) {
+      const above = game.grid.kindAt(game.bot.x, game.bot.y - 1) !== EMPTY;
+      game.step(above && !pressed ? UP : 0);
+      pressed ||= above;
+    }
+    expect(game.lives).toBe(R.LIVES);
+    expect([at(game, 2, 1), at(game, 2, 0)]).toEqual(['.', '.']);
+  });
+
+  it('braces with ↑ pressed early, and smashes what comes down as it arrives', () => {
+    const game = Game.fromRows([
+      '222222...', //
+      '111111...',
+      '.........',
+      '..@......',
+      '333333333',
+    ]);
+    run(game, 1, UP);
+    expect(game.braced).toBe(true);
+    const events = run(game, 200);
+    expect(events.some((e) => e.type === 'die')).toBe(false);
+    expect(events.some((e) => e.type === 'hop')).toBe(false);
+  });
+
+  it('lets go of the brace to move', () => {
+    const game = Game.fromRows([
+      '111111...', //
+      '.........',
+      '..@......',
+      '333333333',
+    ]);
+    run(game, 1, UP);
+    run(game, 1, RIGHT);
+    expect(game.braced).toBe(false);
+  });
+
+  it('still crushes the bot under falling hard rock, braced or not', () => {
+    const game = Game.fromRows([
+      '..#......', //
+      '.........',
+      '..@......',
+      '333333333',
+    ]);
+    const events = run(game, 1, UP).concat(run(game, 200));
+    expect(events).toContainEqual({ type: 'die', cause: 'crush' });
+  });
+
   it('crushes the bot under a falling block', () => {
     const game = Game.fromRows([
       '.1.......', //
