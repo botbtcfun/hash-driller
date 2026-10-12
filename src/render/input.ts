@@ -1,4 +1,4 @@
-import { DOWN, JUMP, LEFT, RIGHT, UP } from '../sim/game';
+import { DOWN, LEFT, RIGHT, UP } from '../sim/game';
 
 const KEYS: Record<string, number> = {
   ArrowLeft: LEFT,
@@ -9,9 +9,6 @@ const KEYS: Record<string, number> = {
   KeyW: UP,
   ArrowDown: DOWN,
   KeyS: DOWN,
-  Space: JUMP,
-  KeyZ: JUMP,
-  KeyX: JUMP,
 };
 
 /**

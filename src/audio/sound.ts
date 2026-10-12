@@ -232,10 +232,6 @@ export class Sound {
           if (!this.every('wobble', 0.25)) break;
           sweep(ctx, out, t, 0.35, { vol: 1, from: 900, q: 4, shape: (x) => (0.5 + 0.5 * Math.sin(2 * Math.PI * 7.7 * x)) * Math.sin(Math.PI * x) });
           break;
-        case 'jump':
-          blip(ctx, out, t, { from: 320, to: 720, glide: 0.03, vol: 0.12, decay: 0.06 });
-          sweep(ctx, out, t, 0.16, { vol: 0.06, from: 800, to: 3500, shape: (x) => Math.sin(Math.PI * x) ** 2 });
-          break;
         case 'die':
           if (e.cause === 'crush') {
             impact(ctx, out, t, 0.38);

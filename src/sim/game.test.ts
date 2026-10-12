@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DOWN, FALL, Game, type GameEvent, JUMP, LEFT, RIGHT, UP, WOBBLE } from './game';
+import { DOWN, FALL, Game, type GameEvent, LEFT, RIGHT, UP, WOBBLE } from './game';
 import { CELL, COLOR, EMPTY, FEE, HEADER, NONCE, ROCK } from './grid';
 import { Mine, headerY } from './layers';
 import { InputLog } from './replay';
@@ -158,27 +158,14 @@ describe('the bot', () => {
     expect([game.bot.x, game.bot.y, game.bot.action, at(game, 1, 1)]).toEqual([0, 1, 'drill', '.']);
   });
 
-  it('jumps onto a step one block high, the way it holds or faces', () => {
+  it('never climbs: what is above stays above', () => {
     const game = Game.fromRows([
       '.........', //
-      '0@0......',
-      '333333333',
-    ]);
-    run(game, 1, JUMP);
-    expect([game.bot.x, game.bot.y, game.bot.action]).toEqual([2, 0, 'climb']);
-    const left = Game.fromRows(['.........', '0@0......', '333333333']);
-    run(left, 1, JUMP | LEFT);
-    expect([left.bot.x, left.bot.y]).toEqual([0, 0]);
-  });
-
-  it('cannot jump two blocks high', () => {
-    const game = Game.fromRows([
-      '.0.......', //
       '@0.......',
       '333333333',
     ]);
-    run(game, 1, JUMP);
-    expect([game.bot.x, game.bot.y, at(game, 1, 1)]).toEqual([0, 1, '0']);
+    run(game, 3 * R.DRILL_TICKS, RIGHT);
+    expect(game.bot.y).toBe(1);
   });
 
   it('keeps a tap made while busy, and uses it once free', () => {
@@ -196,15 +183,19 @@ describe('the bot', () => {
   });
 
   it('forgets a tap after BUFFER_TICKS', () => {
+    // A four-row fall keeps the bot busy for longer than a tap is kept.
     const game = Game.fromRows([
-      '.........', //
-      '@0.......',
-      '333333333',
+      '@........', //
+      '.11111111',
+      '.11111111',
+      '.11111111',
+      '.11111111',
+      '222222222',
     ]);
-    run(game, 1, JUMP);
-    run(game, 1, LEFT);
-    run(game, 2 * R.CLIMB_TICKS);
-    expect([game.bot.x, game.bot.y]).toEqual([1, 0]);
+    run(game, 2);
+    run(game, 1, RIGHT);
+    run(game, 4 * R.BOT_FALL_TICKS + R.DRILL_TICKS);
+    expect([game.bot.y, at(game, 1, 4)]).toEqual([4, '1']);
   });
 
   it('falls into a hole', () => {
@@ -374,7 +365,7 @@ describe('a whole run', () => {
     const rng = new Rng(`inputs:${seed}`);
     let input = 0;
     for (let t = 0; t < ticks && !game.over; t++) {
-      if (t % 12 === 0) input = [DOWN, DOWN, DOWN, LEFT, RIGHT, JUMP, JUMP | LEFT, 0][rng.below(8)]!;
+      if (t % 12 === 0) input = [DOWN, DOWN, DOWN, LEFT, RIGHT, UP, UP | LEFT, 0][rng.below(8)]!;
       log?.push(input);
       game.step(input);
     }

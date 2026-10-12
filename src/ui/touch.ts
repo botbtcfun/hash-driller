@@ -1,14 +1,10 @@
 import type { Input } from '../render/input';
-import { DOWN, JUMP, LEFT, RIGHT, UP } from '../sim/game';
+import { DOWN, LEFT, RIGHT, UP } from '../sim/game';
 
 const DIRS = LEFT | RIGHT | UP | DOWN;
 const BY_NAME: Record<string, number> = { left: LEFT, right: RIGHT, up: UP, down: DOWN };
 
-/**
- * The on-screen controls: a d-pad a thumb can slide across, a jump button and
- * a pause button. Each follows its own touch, so a direction and a jump can
- * be held together.
- */
+/** The on-screen controls: a d-pad a thumb can slide across, and a pause button. */
 export function touchControls(input: Input, onPause: () => void): void {
   const dpad = document.getElementById('dpad')!;
   const keys = [...dpad.querySelectorAll<HTMLElement>('[data-dir]')];
@@ -25,8 +21,6 @@ export function touchControls(input: Input, onPause: () => void): void {
     },
     (bits) => keys.forEach((k) => k.classList.toggle('on', BY_NAME[k.dataset.dir!] === bits)),
   );
-  const jump = document.getElementById('jump')!;
-  hold(jump, JUMP, () => JUMP, (bits) => jump.classList.toggle('on', bits !== 0));
   document.getElementById('pause')!.addEventListener('click', onPause);
 
   function hold(el: HTMLElement, group: number, bitsAt: (e: PointerEvent) => number, show: (bits: number) => void): void {

@@ -168,13 +168,10 @@ export class PlayScene extends Phaser.Scene {
     const g = game.grid;
     const bot = game.bot;
 
-    const moving = bot.action === 'walk' || bot.action === 'climb' || bot.action === 'fall';
+    const moving = bot.action === 'walk' || bot.action === 'fall';
     const p = moving && bot.duration > 0 ? Math.min(1, (bot.duration - bot.timer + alpha) / bot.duration) : 1;
-    // A jump goes up first, then over.
-    const px = bot.action === 'climb' ? Math.max(0, p * 2 - 1) : p;
-    const py = bot.action === 'climb' ? Math.min(1, p * 2) : p;
-    const bx = (bot.fromX + (bot.x - bot.fromX) * px) * TILE;
-    const by = (bot.fromY + (bot.y - bot.fromY) * py) * TILE;
+    const bx = (bot.fromX + (bot.x - bot.fromX) * p) * TILE;
+    const by = (bot.fromY + (bot.y - bot.fromY) * p) * TILE;
 
     const target = Math.max(-this.insetTop, by - BOT_ROW * TILE - this.insetTop);
     this.viewY += (target - this.viewY) * 0.18;

@@ -5,7 +5,7 @@
  *   pnpm --filter @botbtc/drill balance [seeds=20] [minutes=5]
  */
 import { CELL, COLOR, EMPTY, FEE, NONCE, isItem } from '../src/sim/grid';
-import { DOWN, FALL, Game, JUMP, LEFT, RIGHT, UP, WOBBLE } from '../src/sim/game';
+import { DOWN, FALL, Game, LEFT, RIGHT, UP, WOBBLE } from '../src/sim/game';
 import { Mine } from '../src/sim/layers';
 import { Rng } from '../src/sim/rng';
 import { CELL_POWER, COMBO_POWER, POWER_MAX, TICK_HZ } from '../src/sim/rules';
@@ -18,7 +18,7 @@ const down: Policy = () => DOWN;
 /** Mashes: a random input held for a fifth of a second. */
 let held = 0;
 const random: Policy = (_g, rng, t) => {
-  if (t % 12 === 0) held = [DOWN, DOWN, DOWN, LEFT, RIGHT, JUMP, JUMP | LEFT, 0][rng.below(8)]!;
+  if (t % 12 === 0) held = [DOWN, DOWN, DOWN, LEFT, RIGHT, UP, UP | LEFT, 0][rng.below(8)]!;
   return held;
 };
 
@@ -82,7 +82,7 @@ const miner: Policy = (game, rng, t) => {
   const side = (dx: number) => (dx < 0 ? LEFT : RIGHT);
   if (danger(game, x, y)) return careful(game, rng, t);
   const target =
-    (game.power < POWER_MAX * 0.5 ? nearest(game, CELL, -1, 8) : null) ?? nearest(game, FEE, 0, 3) ?? nearest(game, NONCE, -3, 14);
+    (game.power < POWER_MAX * 0.5 ? nearest(game, CELL, 0, 8) : null) ?? nearest(game, FEE, 0, 3) ?? nearest(game, NONCE, 0, 14);
   if (!target) return DOWN;
   const [tx, ty] = target;
   if (tx !== x && ty <= y + 1) {

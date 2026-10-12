@@ -302,12 +302,12 @@ function intro(): void {
 <p class="how">Dig down. Every level has one golden <b>#</b>:<br>touch it to mine the level.</p>
 <p class="how">Orange coins are fees: the <b>#</b> pays them out.<br>Mine levels in a row to grow your chain.</p>
 <p class="how">Power drains: grab <b>⚡</b>. A red <b>!</b> means<br>something above you is about to fall.</p>
-<p class="how">D-pad: move and dig · JUMP: hop up a step</p>
+<p class="how">D-pad: move and dig. There's no way back up.</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
 <p class="blink">TAP TO START</p>`);
     return;
   }
-  const controls = '← → ↓ ↑ move and dig · SPACE jump';
+  const controls = '← → ↓ ↑ move and dig. There\'s no way back up.';
   hud.overlay(`<h2>HASH DRILLER</h2>
 <p class="how">Dig down level by level. Every level has<br>one golden <b>#</b>: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
 <p class="how">Grab the orange coins: they're fees,<br>and the <b>#</b> pays them out with the level.</p>

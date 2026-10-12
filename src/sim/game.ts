@@ -10,8 +10,6 @@ export const LEFT = 1;
 export const RIGHT = 2;
 export const UP = 4;
 export const DOWN = 8;
-/** Hops up onto a one-high step. Pushing into a block digs it. */
-export const JUMP = 16;
 
 /** What a moving body is doing. */
 export const WOBBLE = 1;
@@ -29,7 +27,7 @@ export interface Body {
 }
 
 export type Dir = 'left' | 'right' | 'up' | 'down';
-export type BotAction = 'idle' | 'walk' | 'climb' | 'fall' | 'drill' | 'dead';
+export type BotAction = 'idle' | 'walk' | 'fall' | 'drill' | 'dead';
 
 export interface Bot {
   x: number;
@@ -65,7 +63,6 @@ export type GameEvent =
   | { type: 'shatter'; bits: Bit[] }
   | { type: 'die'; cause: 'crush' | 'power' }
   | { type: 'respawn' }
-  | { type: 'jump' }
   | { type: 'layer'; layer: number; difficulty: number; halving: boolean }
   /** A layer's nonce found: the block is mined, its fees paid out, and the chain grows. */
   | { type: 'nonce'; layer: number; x: number; y: number; reward: number; subsidy: number; fees: number; chain: number }
@@ -300,8 +297,7 @@ export class Game {
     const lr = (input & LEFT ? -1 : 0) + (input & RIGHT ? 1 : 0);
     if (lr !== 0) bot.facing = lr < 0 ? -1 : 1;
 
-    if (input & JUMP) this.jump(bot.facing);
-    else if (input & DOWN) this.drill('down');
+    if (input & DOWN) this.drill('down');
     else if (input & UP) this.drill('up');
     else if (lr !== 0) this.walk(lr);
   }
@@ -337,24 +333,6 @@ export class Game {
     }
     if (k === EMPTY) this.botMove(dx, 0, 'walk', R.WALK_TICKS);
     else if (k !== WALL && k !== GROUND) this.drill(dx < 0 ? 'left' : 'right');
-  }
-
-  /** Hops up onto a one-high step; with nothing to hop onto, just steps. */
-  private jump(dx: number): void {
-    const { x, y } = this.bot;
-    const g = this.grid;
-    const tx = x + dx;
-    const k = g.kindAt(tx, y);
-    if (k === EMPTY || isItem(k)) {
-      this.walk(dx);
-      return;
-    }
-    if (k === WALL || k === GROUND || y - 1 < g.top || g.kindAt(x, y - 1) !== EMPTY) return;
-    const above = g.kindAt(tx, y - 1);
-    if (isItem(above) && g.bodyAt(tx, y - 1) === 0) this.take(tx, y - 1);
-    else if (above !== EMPTY) return;
-    this.botMove(dx, -1, 'climb', R.CLIMB_TICKS);
-    this.events.push({ type: 'jump' });
   }
 
   private drill(dir: Dir): void {
