@@ -182,6 +182,20 @@ describe('the bot', () => {
     expect([at(game, 0, 1), at(game, 0, 2)]).toEqual(['.', '.']);
   });
 
+  it('takes one step for a short press, and two for two', () => {
+    const rows = ['@........', '333333333'];
+    const once = Game.fromRows(rows);
+    run(once, 4, RIGHT);
+    run(once, 40);
+    expect(once.bot.x).toBe(1);
+    const twice = Game.fromRows(rows);
+    run(twice, 3, RIGHT);
+    run(twice, 2);
+    run(twice, 2, RIGHT);
+    run(twice, 40);
+    expect(twice.bot.x).toBe(2);
+  });
+
   it('forgets a tap after BUFFER_TICKS', () => {
     // A four-row fall keeps the bot busy for longer than a tap is kept.
     const game = Game.fromRows([

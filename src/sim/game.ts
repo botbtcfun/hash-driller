@@ -108,9 +108,11 @@ export class Game {
 
   private nextBody = 1;
   private dirty = true;
-  /** The last input seen while the bot was busy, and its age in ticks. */
+  /** The last fresh press made while the bot was busy, and its age in ticks. */
   private buffer = 0;
   private bufferAge = R.BUFFER_TICKS;
+  /** Last tick's input, to tell a fresh press from a key still held. */
+  private lastInput = 0;
   private deathTimer = 0;
   private layerStart = 0;
   private minedLayers = new Set<number>();
@@ -263,7 +265,7 @@ export class Game {
       mix(b.timer);
     }
     const bot = this.bot;
-    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.power, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
+    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.power, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
     return h >>> 0;
   }
 
@@ -271,13 +273,15 @@ export class Game {
 
   private updateBot(input: number): void {
     const bot = this.bot;
+    const fresh = input & ~this.lastInput;
+    this.lastInput = input;
     if (bot.action === 'dead') {
       if (--this.deathTimer <= 0) this.respawn();
       return;
     }
     if (bot.shield > 0) bot.shield--;
     if (bot.timer > 0 && --bot.timer > 0) {
-      this.remember(input);
+      this.remember(input, fresh);
       return;
     }
     bot.action = 'idle';
@@ -285,7 +289,7 @@ export class Game {
     bot.fromY = bot.y;
 
     if (this.grid.kindAt(bot.x, bot.y + 1) === EMPTY) {
-      this.remember(input);
+      this.remember(input, fresh);
       this.botMove(0, 1, 'fall', R.BOT_FALL_TICKS);
       return;
     }
@@ -302,9 +306,13 @@ export class Game {
     else if (lr !== 0) this.walk(lr);
   }
 
-  /** Keeps a press made while the bot is busy, so a quick tap is not lost. */
-  private remember(input: number): void {
-    if (input) {
+  /**
+   * Keeps a fresh press made while the bot is busy, so a quick tap is not
+   * lost. Only fresh ones: a key still held from the press that started the
+   * move must not move the bot again once it's let go.
+   */
+  private remember(input: number, fresh: number): void {
+    if (fresh) {
       this.buffer = input;
       this.bufferAge = 0;
     } else if (this.bufferAge < R.BUFFER_TICKS) this.bufferAge++;
