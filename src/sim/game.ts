@@ -27,7 +27,7 @@ export interface Body {
 }
 
 export type Dir = 'left' | 'right' | 'up' | 'down';
-export type BotAction = 'idle' | 'walk' | 'climb' | 'fall' | 'drill' | 'dead';
+export type BotAction = 'idle' | 'walk' | 'climb' | 'hop' | 'fall' | 'drill' | 'dead';
 
 export interface Bot {
   x: number;
@@ -60,6 +60,8 @@ export type GameEvent =
   | { type: 'clang'; x: number; y: number }
   /** A hop up onto steel. */
   | { type: 'climb' }
+  /** A jump, with ↑ where it's open. */
+  | { type: 'hop' }
   /** A bomb lit, by digging it or by another's blast. */
   | { type: 'fuse'; x: number; y: number }
   /** A bomb going off: what it blew away, and where. */
@@ -119,6 +121,8 @@ export class Game {
   private bufferAge = R.BUFFER_TICKS;
   /** Last tick's input, to tell a fresh press from a key still held. */
   private lastInput = 0;
+  /** The deepest row the bot has been on: it never gets more than a row above it. */
+  private deepest = 0;
   private deathTimer = 0;
   private minedLayers = new Set<number>();
   /** Cells that landed this tick, as y * WIDTH + x, with their bodies' combo levels. */
@@ -134,6 +138,7 @@ export class Game {
     startX = Math.floor(W / 2),
     startY = R.FIELD_TOP - 1,
   ) {
+    this.deepest = startY;
     this.bot = {
       x: startX,
       y: startY,
@@ -160,7 +165,7 @@ export class Game {
       const x = line.indexOf('@');
       if (x >= 0) {
         game.bot.x = game.bot.fromX = x;
-        game.bot.y = game.bot.fromY = y;
+        game.bot.y = game.bot.fromY = game.deepest = y;
       }
       game.grid.push(parseRow(line));
     }
@@ -252,7 +257,7 @@ export class Game {
       mix(b.timer);
     }
     const bot = this.bot;
-    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
+    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.deepest, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
     return h >>> 0;
   }
 
@@ -271,9 +276,13 @@ export class Game {
       this.remember(input, fresh);
       return;
     }
+    const jumped = bot.action === 'hop';
     bot.action = 'idle';
     bot.fromX = bot.x;
     bot.fromY = bot.y;
+
+    // At the top of a jump, ← or → lands on the ledge that side, before gravity takes the bot back down.
+    if (jumped && this.land(input)) return;
 
     if (this.grid.kindAt(bot.x, bot.y + 1) === EMPTY) {
       this.remember(input, fresh);
@@ -281,7 +290,9 @@ export class Game {
       return;
     }
 
-    if (!input && this.bufferAge < R.BUFFER_TICKS) input = this.buffer;
+    // A press kept from while busy counts as fresh.
+    let up = fresh & UP;
+    if (!input && this.bufferAge < R.BUFFER_TICKS) up = input = this.buffer;
     this.buffer = 0;
     this.bufferAge = R.BUFFER_TICKS;
 
@@ -289,8 +300,50 @@ export class Game {
     if (lr !== 0) bot.facing = lr < 0 ? -1 : 1;
 
     if (input & DOWN) this.drill('down');
-    else if (input & UP) this.drill('up');
-    else if (lr !== 0) this.walk(lr);
+    else if (input & UP) {
+      // ↑ digs up what's above; where it's open, a fresh ↑ jumps, unless something is coming down.
+      if (up & UP && this.canHop()) this.hop();
+      else this.drill('up');
+    } else if (lr !== 0) this.walk(lr);
+  }
+
+  /** Never more than a row above the deepest point: a jump is a step up, never a way back up. */
+  private canHop(): boolean {
+    const { x, y } = this.bot;
+    return y >= this.deepest && this.free(x, y - 1) && !this.coming(x, y);
+  }
+
+  private hop(): void {
+    const { x, y } = this.bot;
+    if (isItem(this.grid.kindAt(x, y - 1))) this.take(x, y - 1);
+    this.botMove(0, -1, 'hop', R.HOP_TICKS);
+    this.events.push({ type: 'hop' });
+  }
+
+  /** Lands a jump on the ledge to the side ← or → points to, held or pressed during it. Whether it did. */
+  private land(input: number): boolean {
+    const bot = this.bot;
+    let steer = input;
+    if (!(steer & (LEFT | RIGHT)) && this.bufferAge < R.BUFFER_TICKS) steer = this.buffer;
+    const lr = (steer & LEFT ? -1 : 0) + (steer & RIGHT ? 1 : 0);
+    if (!lr || !this.free(bot.x + lr, bot.y)) return false;
+    this.buffer = 0;
+    this.bufferAge = R.BUFFER_TICKS;
+    bot.facing = lr < 0 ? -1 : 1;
+    if (isItem(this.grid.kindAt(bot.x + lr, bot.y))) this.take(bot.x + lr, bot.y);
+    this.botMove(lr, 0, 'walk', R.WALK_TICKS);
+    return true;
+  }
+
+  /** Something loose or falling above (x, y), before the first block at rest. */
+  private coming(x: number, y: number): boolean {
+    const g = this.grid;
+    for (let yy = y - 1; yy >= g.top; yy--) {
+      const body = this.bodies.get(g.bodyAt(x, yy));
+      if (body && body.state !== POP) return true;
+      if (!body && g.kindAt(x, yy) !== EMPTY) return false;
+    }
+    return false;
   }
 
   /**
@@ -313,14 +366,14 @@ export class Game {
     bot.y += dy;
     bot.action = action;
     bot.timer = bot.duration = ticks;
+    this.deepest = Math.max(this.deepest, bot.y);
     if (this.mine) while (bot.y >= headerY(this.layer + 1)) this.reachLayer(this.layer + 1);
   }
 
   /**
    * Steps sideways, picking up an item there, or digs the block in the way.
    * Steel can't be dug, so the bot climbs onto it instead, where there is
-   * room: one row only, and steel bars never sit in neighbouring rows, so it
-   * is never a way back up.
+   * room, and as a jump, never more than a row above the deepest point.
    */
   private walk(dx: number): void {
     const { x, y } = this.bot;
@@ -332,7 +385,7 @@ export class Game {
       k = EMPTY;
     }
     if (k === EMPTY) this.botMove(dx, 0, 'walk', R.WALK_TICKS);
-    else if (k === STEEL && this.free(x, y - 1) && this.free(tx, y - 1)) {
+    else if (k === STEEL && y >= this.deepest && this.free(x, y - 1) && this.free(tx, y - 1)) {
       if (isItem(g.kindAt(tx, y - 1))) this.take(tx, y - 1);
       this.botMove(dx, -1, 'climb', R.CLIMB_TICKS);
       this.events.push({ type: 'climb' });

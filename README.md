@@ -25,6 +25,7 @@ can skip it, and replay it from HOW TO PLAY on the start screen.
 |---|---|
 | ← → | Move, dig what's in the way, or climb onto steel |
 | ↓ / ↑ | Dig down / dig up, even a piece falling onto you |
+| ↑ where it's open | Jump; ← or → in the air lands on a ledge. One step up at most: there's no way back up |
 | P | Pause |
 | R | Restart |
 | M | Sound on or off |

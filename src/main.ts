@@ -423,12 +423,12 @@ function intro(): void {
 <p class="how">Dig down. Every level has one golden ${icon('nonce', '#')}:<br>touch it to mine the level.</p>
 <p class="how">Orange coins ${icon('fee', '')} are fees: the ${icon('nonce', '#')} pays them out.<br>Mine levels in a row to grow your chain.</p>
 <p class="how">Each level brings a new block to get past.<br>A red <b>!</b> means something above you<br>is about to fall.</p>
-<p class="how">D-pad: move and dig. There's no way back up.<br>Hold its centre to drag it where you like.</p>
+<p class="how">D-pad: move and dig. Where it's open, ↑ jumps:<br>slide on to ← or → to land on a ledge.<br>Hold the d-pad's centre to drag it.</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
 <p class="blink">TAP TO START</p>${more}`);
     return;
   }
-  const controls = '← → ↓ ↑ move and dig. There\'s no way back up.';
+  const controls = '← → ↓ ↑ move and dig. Where it\'s open,<br>↑ jumps: ← or → in the air lands on a ledge.';
   hud.overlay(`<h2>HASH DRILLER</h2>
 <p class="how">Dig down level by level. Every level has<br>one golden ${icon('nonce', '#')}: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
 <p class="how">Grab the orange coins ${icon('fee', '')}: they're fees,<br>and the ${icon('nonce', '#')} pays them out with the level.</p>

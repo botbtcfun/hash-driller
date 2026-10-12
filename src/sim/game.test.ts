@@ -274,6 +274,65 @@ describe('the bot', () => {
     }
   });
 
+  it('jumps with ↑ where it is open, and comes back down', () => {
+    const game = Game.fromRows([
+      '.........', //
+      '.........',
+      '....@....',
+      '333333333',
+    ]);
+    const events = run(game, 1, UP);
+    expect(events).toContainEqual({ type: 'hop' });
+    expect(game.bot.y).toBe(1);
+    run(game, 40);
+    expect(game.bot.y).toBe(2);
+  });
+
+  it('lands a jump on a ledge with ← or →, pressed during it or held', () => {
+    for (const keys of [[UP, RIGHT], [UP | RIGHT, UP | RIGHT]]) {
+      const game = Game.fromRows([
+        '.........', //
+        '.........',
+        '....@3...',
+        '333333333',
+      ]);
+      run(game, 2, keys[0]);
+      run(game, R.HOP_TICKS, keys[1]);
+      run(game, 30);
+      expect([game.bot.x, game.bot.y]).toEqual([5, 1]);
+    }
+  });
+
+  it('digs up instead of jumping when something is coming down', () => {
+    const game = Game.fromRows([
+      '....1....', //
+      '.........',
+      '....@....',
+      '333333333',
+    ]);
+    const events = run(game, 1, UP);
+    expect(events.some((e) => e.type === 'hop')).toBe(false);
+    expect(game.bot.y).toBe(2);
+  });
+
+  it('never gets more than a row above its deepest point: a jump is no way back up', () => {
+    const game = Game.fromRows([
+      '.........', //
+      '.........',
+      '......2..',
+      '....@33..',
+      '333333333',
+    ]);
+    run(game, 2, UP);
+    run(game, R.HOP_TICKS, RIGHT);
+    run(game, 30);
+    expect([game.bot.x, game.bot.y]).toEqual([5, 2]);
+    // Up again from the step: no jump, as that would be two rows above the deepest point.
+    const events = run(game, 2, UP);
+    expect(events.some((e) => e.type === 'hop')).toBe(false);
+    expect(game.bot.y).toBe(2);
+  });
+
   it('keeps a tap made while busy, and uses it once free', () => {
     const game = Game.fromRows([
       '@........', //

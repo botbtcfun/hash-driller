@@ -182,6 +182,7 @@ export class Sound {
           blip(ctx, out, t, { from: 180, to: 140, vol: 0.12, decay: 0.04 });
           break;
         case 'climb':
+        case 'hop':
           blip(ctx, out, t, { from: 260, to: 620, glide: 0.09, vol: 0.12, decay: 0.09 });
           break;
         case 'fuse':
