@@ -2,7 +2,7 @@
  * Every tunable number in the game. Times are in ticks, 60 a second. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 4;
+export const RULES_VERSION = 5;
 export const TICK_HZ = 60;
 
 // The shaft
@@ -78,7 +78,8 @@ export const POWER_MAX = POWER_SECONDS * TICK_HZ * 1000;
 export const CELL_POWER = POWER_MAX / 4;
 /** The least a power cell gives, however many halvings. */
 export const MIN_CELL_POWER = POWER_MAX / 25;
-export const ROCK_HIT_POWER = POWER_MAX / 25;
+/** A hit on hard rock: a little power, as rock mostly costs time. */
+export const ROCK_HIT_POWER = POWER_MAX / 100;
 /** Fee per block popped in a combo, times the levels above the first. */
 export const COMBO_POWER = POWER_MAX / 100;
 
