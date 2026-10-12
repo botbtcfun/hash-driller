@@ -217,6 +217,8 @@ function orient(): void {
   document.body.classList.toggle('portrait', h >= w);
   document.body.classList.toggle('landscape', h < w);
   document.body.classList.toggle('ios-bar', iosBar());
+  // Opened from an iPhone's or iPad's home screen.
+  document.body.classList.toggle('ios-app', (navigator as Navigator & { standalone?: boolean }).standalone === true);
   // The page fills exactly the visible height, between the browser's bars.
   document.documentElement.style.setProperty('--vh', `${h}px`);
 }

@@ -624,6 +624,13 @@ body.touch .strip {
   pointer-events: none;
 }
 
+/* Opened from the home screen, iOS blurs and dims what's under the status
+   bar and a little past it, beyond the safe area: the strip's text starts
+   below that. */
+body.touch.portrait.ios-app .strip {
+  padding-top: calc(env(safe-area-inset-top) + 28px);
+}
+
 .strip-row {
   display: flex;
   align-items: center;
