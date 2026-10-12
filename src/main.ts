@@ -53,7 +53,12 @@ function learn(): void {
   }
 }
 
-const tap = () => (isTouch() ? 'TAP' : 'PRESS ANY KEY');
+const tap = () => (isTouch() ? 'TAP' : 'PRESS ENTER');
+/**
+ * The keys that start a run from a screen: Enter, Space and the game's own.
+ * Not any key, so a screenshot's shortcut leaves the screen be.
+ */
+const START_KEYS = new Set(['Enter', 'NumpadEnter', 'Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'KeyW', 'KeyA', 'KeyS', 'KeyD']);
 
 class Run implements Session {
   game = new Game(new Mine({ seed: `day:${day}`, layers: [] }));
@@ -437,7 +442,7 @@ function intro(): void {
 <p class="how">Each level brings something new: hard rock,<br>steel, loose stones, bombs. Deeper is harder.</p>
 <p class="how">${controls}</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
-<p class="blink">PRESS ANY KEY</p>${more}`);
+<p class="blink">PRESS ENTER TO START</p>${more}`);
 }
 intro();
 // The game is up: the loading screen goes, and the music renders while the intro is read.
@@ -446,7 +451,7 @@ setTimeout(() => void sound.prepare(), 300);
 
 window.addEventListener('keydown', (e) => {
   if (!run.started || run.graduated) {
-    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.metaKey || e.ctrlKey || e.altKey || !START_KEYS.has(e.code)) return;
     if (run.graduated) run.begin(false);
     else run.start();
     return;
