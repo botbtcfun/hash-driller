@@ -150,11 +150,12 @@ class Run implements Session {
   /** The tutorial's last screen: what's left to know, then today's mine. */
   private graduate(): void {
     learn();
+    const jump = isTouch() ? 'slide on to ← or →' : 'then ← or →';
     hud.overlay(`<h2>READY TO DIG!</h2>
-<p class="how">That's the game: dig down level by level,<br>and mine each level's golden ${icon('nonce', '#')}.</p>
-<p class="how">Mine levels in a row to grow your chain:<br>each pays more. Pass a <b>LEVEL</b> line<br>without its ${icon('nonce', '#')} and the chain breaks.</p>
-<p class="how">Each level brings something new to get past,<br>and deeper is harder. The ${icon('nonce', '#')} hides further<br>from the line too: the arrow points to it.</p>
-<p class="how dim">From here on, it's full speed.<br>One new mine a day, the same for everyone.</p>
+<p class="how">Mine levels in a row to grow your chain:<br>each pays more. Skip a ${icon('nonce', '#')} and it breaks.</p>
+<p class="how">Where it's open, ↑ jumps: ${jump}<br>to land on a ledge.</p>
+<p class="how">Each level brings something new.<br>Deeper is harder.</p>
+<p class="how dim">Full speed from here. A new mine every day.</p>
 <p class="blink">${tap()} TO PLAY TODAY'S MINE</p>`);
   }
 }
@@ -412,37 +413,14 @@ for (const id of ['sound', 'sound-pad']) {
 }
 
 function intro(): void {
-  // The first time, the tutorial explains as you play.
-  if (!learnt()) {
-    hud.overlay(`<h2>HASH DRILLER</h2>
-<p class="how">Dig down level by level,<br>and mine each level's golden ${icon('nonce', '#')}.</p>
-<p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
-<p class="blink">${tap()} TO START</p>
-<p class="how dim">A short, slow tutorial comes first.</p>`);
-    return;
-  }
-  const more = `<p class="more"><button type="button" data-act="tutorial">HOW TO PLAY</button>${install.button()}</p>`;
-  if (isTouch()) {
-    // A phone gets the short version: the shaft says the rest as you play.
-    hud.overlay(`<h2>HASH DRILLER</h2>
-<p class="how">Dig down. Every level has one golden ${icon('nonce', '#')}:<br>touch it to mine the level.</p>
-<p class="how">Orange coins ${icon('fee', '')} are fees: the ${icon('nonce', '#')} pays them out.<br>Mine levels in a row to grow your chain.</p>
-<p class="how">Each level brings a new block to get past.<br>A red <b>!</b> means something above you<br>is about to fall.</p>
-<p class="how">D-pad: move and dig. Where it's open, ↑ jumps:<br>slide on to ← or → to land on a ledge.<br>Hold the d-pad's centre to drag it.</p>
-<p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
-<p class="blink">TAP TO START</p>${more}`);
-    return;
-  }
-  const controls = '← → ↓ ↑ move and dig. Where it\'s open,<br>↑ jumps: ← or → in the air lands on a ledge.';
+  const nonce = icon('nonce', '#');
+  // Short: the tutorial explains as you play, the first time and from HOW TO PLAY.
+  const first = !learnt();
   hud.overlay(`<h2>HASH DRILLER</h2>
-<p class="how">Dig down level by level. Every level has<br>one golden ${icon('nonce', '#')}: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
-<p class="how">Grab the orange coins ${icon('fee', '')}: they're fees,<br>and the ${icon('nonce', '#')} pays them out with the level.</p>
-<p class="how">Mine every level to grow your chain:<br>each pays more. Pass the next <b>LEVEL</b> line<br>without its ${icon('nonce', '#')} and the chain breaks,<br>and its fees are lost.</p>
-<p class="how">Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or tap ↑ to smash what comes down:<br>a piece a tap, so tap fast for a stack.</p>
-<p class="how">Each level brings something new: hard rock,<br>steel, loose stones, bombs. Deeper is harder.</p>
-<p class="how">${controls}</p>
-<p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
-<p class="blink">PRESS ENTER TO START</p>${more}`);
+<p class="how">Dig down level by level,<br>and mine each level's golden ${nonce}.</p>
+<p class="how dim">Each level is a real botBTC block,<br>and its ${nonce} is the block's nonce.</p>
+<p class="blink">${tap()} TO START</p>
+${first ? '<p class="how dim">A short, slow tutorial comes first.</p>' : `<p class="more"><button type="button" data-act="tutorial">HOW TO PLAY</button>${install.button()}</p>`}`);
 }
 intro();
 // The game is up: the loading screen goes, and the music renders while the intro is read.
