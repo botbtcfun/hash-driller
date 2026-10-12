@@ -10,6 +10,42 @@
   var bar = document.getElementById('load-bar');
   var text = document.getElementById('load-text');
 
+  // Lays the page out as the game will, so nothing jumps when it arrives:
+  // touch screens get their own layout at once, and the box takes the size
+  // the game's shaft will have. Keep in step with fit() in src/main.ts.
+  var touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+  document.body.classList.toggle('touch', touch);
+  function fit() {
+    if (!box.isConnected) return window.removeEventListener('resize', fit);
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    document.body.classList.toggle('portrait', h >= w);
+    document.body.classList.toggle('landscape', h < w);
+    var hud = document.getElementById('hud');
+    var width = '';
+    var height = '';
+    if (touch && h < w) {
+      // Landscape: the shaft between the d-pad's column and the strip's.
+      var zoom = Math.min(h / (12 * 16), (w - 2 * 190 - 48) / 144, 3.5);
+      width = Math.floor(144 * zoom) + 'px';
+      height = h + 'px';
+    } else if (!touch) {
+      // Whole pixels, filling the height the panel leaves.
+      var side = w > 640;
+      var aw = side ? w - 32 - 8 - 16 - hud.offsetWidth : w - 16 - 8;
+      var ah = side ? h - 32 - 8 : h - 16 - 8 - 8 - hud.offsetHeight;
+      var z = Math.max(1, Math.floor(Math.min(aw / 144, ah / 208)));
+      width = 144 * z + 'px';
+      height = Math.max(208, Math.floor(ah / z)) * z + 'px';
+    }
+    box.style.width = width;
+    box.style.height = height;
+    box.style.maxWidth = box.style.maxHeight = width ? 'none' : '';
+    if (!touch && w > 640) hud.style.height = document.getElementById('stage').offsetHeight + 'px';
+  }
+  fit();
+  window.addEventListener('resize', fit);
+
   // If the game fails before it replaces this screen, say so instead of hanging.
   window.addEventListener('error', function () {
     if (document.getElementById('loading')) fail('COULD NOT START');

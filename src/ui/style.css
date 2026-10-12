@@ -487,6 +487,7 @@ body.touch.landscape #banner:has(.coach) {
   align-items: center;
   justify-content: center;
   gap: 16px;
+  /* Without a script to size it like the game, a box about its shape. */
   width: 288px;
   max-width: calc(100vw - 40px);
   height: 416px;
@@ -601,10 +602,18 @@ body.touch #game {
   justify-content: center;
 }
 
+/* While it loads, the screen is the loading box, as it will be the shaft. */
 body.touch .loading {
   margin: 0 auto;
+  width: 100%;
+  max-width: none;
   height: 100%;
   max-height: none;
+}
+
+body.touch:has(#loading) .strip,
+body.touch:has(#loading) .pad {
+  visibility: hidden;
 }
 
 /* The strip: sats, fees, level, chain and lives, over the top. */
