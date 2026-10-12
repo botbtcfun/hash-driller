@@ -2,7 +2,7 @@
  * Every tunable number in the game. Times are in ticks, 60 a second. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 10;
+export const RULES_VERSION = 11;
 export const TICK_HZ = 60;
 
 // The shaft
@@ -22,10 +22,7 @@ export const FIRST_NONCE_MAX_ROW = 7;
 export const WINDOW_ROWS = 64;
 /** Rows above the bot kept; higher ones are dropped and can no longer fall. */
 export const KEEP_ABOVE = 16;
-/**
- * Rows the player sees above the bot. A loose group entirely higher stays
- * put, so nothing starts falling out of sight.
- */
+/** Rows the player sees above the bot. What comes loose higher falls all the same: the ! warns of it. */
 export const VIEW_ABOVE = 4;
 /** Rows generated below the bot. */
 export const GEN_AHEAD = 28;

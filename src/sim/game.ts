@@ -642,22 +642,16 @@ export class Game {
       }
     }
 
-    // Held from the start: header tiles; groups cut by the window's top, which
-    // may go on above it; and groups wholly above what the player can see.
+    // Held from the start: header tiles, steel, and groups cut by the window's
+    // top, which may go on above it. What comes loose out of sight falls like
+    // the rest, so nothing is left hanging up there, a nonce least of all.
     const held = new Uint8Array(groups.length);
-    const seen = this.bot.y - R.VIEW_ABOVE;
     groups.forEach((cells, id) => {
-      let low = -1;
-      let cut = false;
-      for (const p of cells) {
-        const y = Math.floor(p / W);
-        low = Math.max(low, y);
-        if (y === g.top && g.top > 0) cut = true;
-      }
+      const cut = g.top > 0 && cells.some((p) => Math.floor(p / W) === g.top);
       const p = cells[0]!;
       const x = p % W;
       const k = g.kindAt(x, (p - x) / W);
-      if (cut || low < seen || k === HEADER || k === STEEL) held[id] = 1;
+      if (cut || k === HEADER || k === STEEL) held[id] = 1;
     });
     for (let changed = true; changed; ) {
       changed = false;

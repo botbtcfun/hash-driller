@@ -287,13 +287,22 @@ describe('gravity', () => {
     expect([at(game, 1, 0), at(game, 1, 1)]).toEqual(['1', '=']);
   });
 
-  it('starts nothing falling out of sight above the bot', () => {
-    const rows = ['1........', ...Array(8).fill('.........'), '.2.......', '.........', '.........', '@........', '333333333'];
+  it('drops what comes loose out of sight too, a nonce right down to the bot', () => {
+    const rows = ['....N....', ...Array(8).fill('.........'), '.........', '.........', '.........', '....@....', '333333333'];
     const game = Game.fromRows(rows);
-    run(game, 200);
-    expect(at(game, 0, 0)).toBe('1');
-    expect(at(game, 1, 12)).toBe('2');
+    const events = run(game, 300);
+    // The nonce comes down the bot's column and the bot catches it.
+    expect(events).toContainEqual(expect.objectContaining({ type: 'nonce' }));
     expect(game.lives).toBe(R.LIVES);
+  });
+
+  it('warns of a block coming down from out of sight, so the bot can step aside', () => {
+    const rows = ['....1....', ...Array(10).fill('.........'), '....@....', '333333333'];
+    const game = Game.fromRows(rows);
+    run(game, R.WOBBLE_TICKS);
+    // Something is coming down the bot's column: a fresh ↑ braces rather than jumping into it.
+    run(game, 1, UP);
+    expect(game.braced).toBe(true);
   });
 
   it('keeps blocks on rock, and on blocks of another colour', () => {
