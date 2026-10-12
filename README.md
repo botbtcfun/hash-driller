@@ -7,7 +7,7 @@ subsidy, which halves as you go deeper while fees grow. Mine level after level
 to grow your chain, and each one pays more; pass the next LEVEL line without
 its # and the chain breaks and its fees are lost. Anything you dig out from
 under falls, and every level from 2 to 5 brings a new kind of block: hard
-rock that takes a few hits, steel you have to go around, loose stones that
+rock that takes a few hits, steel you climb or go around, loose stones that
 drop without warning, and bombs that blast everything around them. Deeper
 down there is more of each, and loose blocks give you less warning.
 
@@ -23,7 +23,7 @@ can skip it, and replay it from HOW TO PLAY on the start screen.
 
 | Key | |
 |---|---|
-| ← → | Move, or dig what's in the way |
+| ← → | Move, dig what's in the way, or climb onto steel |
 | ↓ / ↑ | Dig down / dig up, even a piece falling onto you |
 | P | Pause |
 | R | Restart |

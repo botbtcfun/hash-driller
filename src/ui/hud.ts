@@ -10,7 +10,7 @@ const sats = (n: number) => n.toLocaleString('en-US');
 /** What levels 2 to 5 each bring: the block, its name and how it works, announced as the level starts. */
 const NEW_BLOCKS: Record<number, [sprite: Parameters<typeof icon>[0], name: string, rule: string]> = {
   [ROCK_LEVEL]: ['rock', 'HARD ROCK', 'TAKES A FEW HITS TO BREAK'],
-  [STEEL_LEVEL]: ['steel', 'STEEL', "CAN'T BE DUG: GO AROUND IT"],
+  [STEEL_LEVEL]: ['steel', 'STEEL', "CAN'T BE DUG: WALK INTO IT<br>TO CLIMB IT, OR GO AROUND"],
   [STONE_LEVEL]: ['stone', 'LOOSE STONE', 'DROPS THE MOMENT NOTHING<br>HOLDS IT, WITH NO WARNING'],
   [BOMB_LEVEL]: ['bomb', 'BOMB', 'DIG IT AND RUN: IT BLASTS<br>ALL AROUND IT, STEEL TOO'],
 };

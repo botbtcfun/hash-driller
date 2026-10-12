@@ -27,7 +27,7 @@ export interface Body {
 }
 
 export type Dir = 'left' | 'right' | 'up' | 'down';
-export type BotAction = 'idle' | 'walk' | 'fall' | 'drill' | 'dead';
+export type BotAction = 'idle' | 'walk' | 'climb' | 'fall' | 'drill' | 'dead';
 
 export interface Bot {
   x: number;
@@ -58,6 +58,8 @@ export type GameEvent =
   | { type: 'rock'; x: number; y: number; broken: boolean }
   /** Steel dug at, to no effect. */
   | { type: 'clang'; x: number; y: number }
+  /** A hop up onto steel. */
+  | { type: 'climb' }
   /** A bomb lit, by digging it or by another's blast. */
   | { type: 'fuse'; x: number; y: number }
   /** A bomb going off: what it blew away, and where. */
@@ -314,7 +316,12 @@ export class Game {
     if (this.mine) while (bot.y >= headerY(this.layer + 1)) this.reachLayer(this.layer + 1);
   }
 
-  /** Steps sideways, picking up an item there, or digs the block in the way. */
+  /**
+   * Steps sideways, picking up an item there, or digs the block in the way.
+   * Steel can't be dug, so the bot climbs onto it instead, where there is
+   * room: one row only, and steel bars never sit in neighbouring rows, so it
+   * is never a way back up.
+   */
   private walk(dx: number): void {
     const { x, y } = this.bot;
     const g = this.grid;
@@ -325,7 +332,17 @@ export class Game {
       k = EMPTY;
     }
     if (k === EMPTY) this.botMove(dx, 0, 'walk', R.WALK_TICKS);
-    else if (k !== WALL && k !== GROUND) this.drill(dx < 0 ? 'left' : 'right');
+    else if (k === STEEL && this.free(x, y - 1) && this.free(tx, y - 1)) {
+      if (isItem(g.kindAt(tx, y - 1))) this.take(tx, y - 1);
+      this.botMove(dx, -1, 'climb', R.CLIMB_TICKS);
+      this.events.push({ type: 'climb' });
+    } else if (k !== WALL && k !== GROUND) this.drill(dx < 0 ? 'left' : 'right');
+  }
+
+  /** Room for the bot: empty, or an item at rest it would pick up. */
+  private free(x: number, y: number): boolean {
+    const k = this.grid.kindAt(x, y);
+    return k === EMPTY || (isItem(k) && this.grid.bodyAt(x, y) === 0);
   }
 
   private drill(dir: Dir): void {

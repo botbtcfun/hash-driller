@@ -2,7 +2,7 @@
  * Every tunable number in the game. Times are in ticks, 60 a second. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 6;
+export const RULES_VERSION = 7;
 export const TICK_HZ = 60;
 
 // The shaft
@@ -76,6 +76,8 @@ export const CHAIN_FUSE_TICKS = 12;
 
 // The bot
 export const WALK_TICKS = 8;
+/** A hop up onto steel walked into, one row up and over. */
+export const CLIMB_TICKS = 12;
 export const BOT_FALL_TICKS = 4;
 export const DRILL_TICKS = 10;
 /** A press while the bot is busy is kept this long, then used when it's free. */

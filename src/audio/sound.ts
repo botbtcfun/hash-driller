@@ -181,6 +181,9 @@ export class Sound {
           bell(ctx, out, t, 73, { vol: 0.04, len: 0.12, rev: 0.1, dly: 0 });
           blip(ctx, out, t, { from: 180, to: 140, vol: 0.12, decay: 0.04 });
           break;
+        case 'climb':
+          blip(ctx, out, t, { from: 260, to: 620, glide: 0.09, vol: 0.12, decay: 0.09 });
+          break;
         case 'fuse':
           // A hiss as the fuse catches, and a tick.
           sweep(ctx, out, t, 0.5, { vol: 0.12, type: 'highpass', from: 5000, to: 7000, q: 0.7, shape: (x) => Math.exp(-x * 3) });

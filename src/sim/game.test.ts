@@ -248,6 +248,32 @@ describe('the bot', () => {
     expect(game.bot.y).toBe(1);
   });
 
+  it('climbs onto steel it walks into, where there is room, and walks on along it', () => {
+    const game = Game.fromRows([
+      '.........', //
+      '.....$...',
+      '....@SSS.',
+      '333333333',
+    ]);
+    // The hop onto the first steel, then along the bar to the last.
+    const events = run(game, R.CLIMB_TICKS + R.WALK_TICKS + 2, RIGHT);
+    expect(events).toContainEqual({ type: 'climb' });
+    expect(events).toContainEqual(expect.objectContaining({ type: 'fee' }));
+    expect([game.bot.x, game.bot.y]).toEqual([7, 1]);
+  });
+
+  it('climbs no steel without room above it and above the bot', () => {
+    for (const rows of [
+      ['.....1...', '....@S...', '333333333'],
+      ['....1....', '....@S...', '333333333'],
+    ]) {
+      const game = Game.fromRows(rows);
+      const events = run(game, 3 * R.CLIMB_TICKS, RIGHT);
+      expect(events.some((e) => e.type === 'climb')).toBe(false);
+      expect(game.bot.y).toBe(1);
+    }
+  });
+
   it('keeps a tap made while busy, and uses it once free', () => {
     const game = Game.fromRows([
       '@........', //
