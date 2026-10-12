@@ -1,4 +1,4 @@
-import { CELL, COLOR, EMPTY, FEE, GROUND, Grid, HEADER, NONCE, ROCK, WALL, isItem, parseRow } from './grid';
+import { BOMB, COLOR, EMPTY, FEE, GROUND, Grid, HEADER, NONCE, ROCK, STEEL, STONE, WALL, isItem, parseRow } from './grid';
 import { Mine, headerY } from './layers';
 import { isqrt } from './rng';
 import * as R from './rules';
@@ -56,12 +56,17 @@ export interface Bit {
 export type GameEvent =
   | { type: 'drill'; bits: Bit[] }
   | { type: 'rock'; x: number; y: number; broken: boolean }
-  | { type: 'cell'; x: number; y: number }
+  /** Steel dug at, to no effect. */
+  | { type: 'clang'; x: number; y: number }
+  /** A bomb lit, by digging it or by another's blast. */
+  | { type: 'fuse'; x: number; y: number }
+  /** A bomb going off: what it blew away, and where. */
+  | { type: 'blast'; x: number; y: number; bits: Bit[] }
   | { type: 'wobble' }
   | { type: 'land' }
   | { type: 'pop'; bits: Bit[]; combo: number; sats: number }
   | { type: 'shatter'; bits: Bit[] }
-  | { type: 'die'; cause: 'crush' | 'power' }
+  | { type: 'die'; cause: 'crush' | 'blast' }
   | { type: 'respawn' }
   | { type: 'layer'; layer: number; difficulty: number; halving: boolean }
   /** A layer's nonce found: the block is mined, its fees paid out, and the chain grows. */
@@ -84,13 +89,12 @@ export class Game {
   readonly bodies = new Map<number, Body>();
   readonly bot: Bot;
   tick = 0;
-  power = R.POWER_MAX;
   lives = R.LIVES;
   sats = 0;
   /** The highest combo level popping right now. */
   combo = 0;
   maxCombo = 0;
-  /** Thousandths: 1000 is difficulty 1. */
+  /** Thousandths: 1000 is difficulty 1. It rises with every level. */
   difficulty = R.D_ONE;
   /** The deepest layer whose header the bot has reached. */
   layer = 0;
@@ -114,7 +118,6 @@ export class Game {
   /** Last tick's input, to tell a fresh press from a key still held. */
   private lastInput = 0;
   private deathTimer = 0;
-  private layerStart = 0;
   private minedLayers = new Set<number>();
   /** Cells that landed this tick, as y * WIDTH + x, with their bodies' combo levels. */
   private landed: [p: number, combo: number][] = [];
@@ -146,9 +149,8 @@ export class Game {
   }
 
   /**
-   * A game on a fixed grid, for tests. '.' is empty, 0-3 a colour, '#' hard
-   * rock, '+' a power cell, '=' a header tile and '@' the bot, on an empty
-   * cell. The last row rests on the ground.
+   * A game on a fixed grid, for tests: rows as parseRow reads them, with '@'
+   * the bot, on an empty cell. The last row rests on the ground.
    */
   static fromRows(rows: string[]): Game {
     const game = new Game(null, 0, 0);
@@ -173,22 +175,17 @@ export class Game {
     if (this.dirty) this.settle();
     this.updateBodies();
     if (this.tick % R.FALL_TICKS === 0) this.fallStep();
+    this.burnFuses();
     if (this.dirty) this.settle();
     if (this.landed.length) this.popLanded();
     this.combo = 0;
     for (const b of this.bodies.values()) if (b.state === POP) this.combo = Math.max(this.combo, b.combo);
-    this.drainPower();
     this.scroll();
   }
 
   /** Depth in metres: rows below the surface. */
   get depth(): number {
     return Math.max(0, this.bot.y - (R.FIELD_TOP - 1));
-  }
-
-  /** Power cells' refill, halved at every halving. */
-  get cellPower(): number {
-    return Math.max(R.CELL_POWER >> this.halvings, R.MIN_CELL_POWER);
   }
 
   get halvings(): number {
@@ -253,7 +250,7 @@ export class Game {
       mix(b.timer);
     }
     const bot = this.bot;
-    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.power, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
+    for (const v of [bot.x, bot.y, bot.facing, bot.timer, bot.shield, this.buffer, this.bufferAge, this.lastInput, this.lives, this.sats, this.combo, this.chain, this.pending, this.difficulty, this.layer, this.tick]) mix(v);
     return h >>> 0;
   }
 
@@ -354,11 +351,25 @@ export class Game {
     } else if (k === ROCK) {
       const i = g.i(x, y);
       g.hits[i]!++;
-      this.power -= R.ROCK_HIT_POWER;
       const broken = g.hits[i]! >= this.rockHits;
       if (broken) g.clear(x, y);
       this.events.push({ type: 'rock', x, y, broken });
       if (!broken) return;
+    } else if (k === STEEL) {
+      // Steel holds, unless it's the only way on.
+      this.events.push({ type: 'clang', x, y });
+      if (!this.trapped()) return;
+      g.clear(x, y);
+    } else if (k === STONE) {
+      g.clear(x, y);
+      this.events.push({ type: 'drill', bits: [{ x, y, kind: STONE, color: 0 }] });
+    } else if (k === BOMB) {
+      const i = g.i(x, y);
+      if (g.hits[i] === 0) {
+        g.hits[i] = this.fuseTicks;
+        this.events.push({ type: 'fuse', x, y });
+      }
+      return;
     } else if (isItem(k)) {
       this.take(x, y);
     } else if (k === HEADER) {
@@ -368,7 +379,23 @@ export class Game {
     this.dirty = true;
   }
 
-  /** Picks up a power cell, a fee or a nonce. */
+  /**
+   * No way on but through steel: every cell the bot can get to along its
+   * row, walking or digging, has steel under it.
+   */
+  private trapped(): boolean {
+    const { x, y } = this.bot;
+    const g = this.grid;
+    for (const dir of [-1, 1]) {
+      for (let cx = x; cx >= 0 && cx < W; cx += dir) {
+        if (cx !== x && g.kindAt(cx, y) === STEEL) break;
+        if (g.kindAt(cx, y + 1) !== STEEL) return false;
+      }
+    }
+    return true;
+  }
+
+  /** Picks up a fee or a nonce. */
   private take(x: number, y: number): void {
     const g = this.grid;
     const i = g.i(x, y);
@@ -384,13 +411,10 @@ export class Game {
       this.mined++;
       this.minedLayers.add(layer);
       this.events.push({ type: 'nonce', layer, x, y, reward, subsidy: R.BLOCK_REWARD >> this.halvings, fees, chain: this.chain });
-    } else if (g.kind[i] === FEE) {
+    } else {
       const value = this.feeValue;
       this.pending += value;
       this.events.push({ type: 'fee', x, y, value, pending: this.pending });
-    } else {
-      this.power = Math.min(R.POWER_MAX, this.power + this.cellPower);
-      this.events.push({ type: 'cell', x, y });
     }
     g.clear(x, y);
     this.dirty = true;
@@ -415,18 +439,12 @@ export class Game {
       this.events.push({ type: 'missed', layer: left, chain, fees });
     }
     this.layer = k;
-    if (k >= 2) {
-      // The difficulty adjustment: aim every layer at the target time.
-      const actual = Math.max(1, this.tick - this.layerStart);
-      const ratio = clamp(Math.floor((R.LAYER_TARGET_TICKS * 1000) / actual), R.RETARGET_MIN, R.RETARGET_MAX);
-      this.difficulty = clamp(Math.floor((this.difficulty * ratio) / 1000), R.D_MIN, R.D_MAX);
-    }
-    this.layerStart = this.tick;
+    this.difficulty = Math.min(R.D_ONE + (k - 1) * R.D_STEP, R.D_MAX);
     const halving = k > 1 && (k - 1) % R.HALVING_LAYERS === 0;
     this.events.push({ type: 'layer', layer: k, difficulty: this.difficulty, halving });
   }
 
-  private die(cause: 'crush' | 'power'): void {
+  private die(cause: 'crush' | 'blast'): void {
     const bot = this.bot;
     bot.action = 'dead';
     bot.timer = 0;
@@ -448,18 +466,52 @@ export class Game {
     for (let y = bot.y; y >= bot.y - 2; y--) if (this.grid.inside(bot.x, y)) this.grid.clear(bot.x, y);
     bot.action = 'idle';
     bot.shield = R.SHIELD_TICKS;
-    this.power = R.POWER_MAX;
     this.dirty = true;
     this.events.push({ type: 'respawn' });
   }
 
-  private drainPower(): void {
-    if (this.bot.action === 'dead') return;
-    this.power -= isqrt(this.difficulty * 1000);
-    if (this.power <= 0) {
-      this.power = 0;
-      this.die('power');
+  /** Burns every lit bomb's fuse down a tick, and sets off those burnt out. */
+  private burnFuses(): void {
+    const g = this.grid;
+    const due: [number, number][] = [];
+    for (let y = g.top; y < g.bottom; y++) {
+      for (let x = 0; x < W; x++) {
+        const i = g.i(x, y);
+        if (g.kind[i] === BOMB && g.hits[i]! > 0 && --g.hits[i]! === 0) due.push([x, y]);
+      }
     }
+    for (const [x, y] of due) this.blast(x, y);
+  }
+
+  /**
+   * A bomb going off: everything in the 3x3 around it goes, steel too, but
+   * the level line holds, and fees and nonces are left to fall. Other bombs
+   * in it go off soon after, and the bot in it is lost, shield or not.
+   */
+  private blast(cx: number, cy: number): void {
+    const g = this.grid;
+    const bits: Bit[] = [];
+    for (let y = cy - 1; y <= cy + 1; y++) {
+      for (let x = cx - 1; x <= cx + 1; x++) {
+        if (!g.inside(x, y)) continue;
+        const i = g.i(x, y);
+        const k = g.kind[i]!;
+        if (k === BOMB && (x !== cx || y !== cy)) {
+          if (g.hits[i] === 0 || g.hits[i]! > R.CHAIN_FUSE_TICKS) {
+            g.hits[i] = R.CHAIN_FUSE_TICKS;
+            this.events.push({ type: 'fuse', x, y });
+          }
+          continue;
+        }
+        if (k === EMPTY || k === HEADER || isItem(k)) continue;
+        bits.push({ x, y, kind: k, color: g.color[i]! });
+        g.clear(x, y);
+      }
+    }
+    this.events.push({ type: 'blast', x: cx, y: cy, bits });
+    this.dirty = true;
+    const bot = this.bot;
+    if (bot.action !== 'dead' && Math.abs(bot.x - cx) <= 1 && Math.abs(bot.y - cy) <= 1) this.die('blast');
   }
 
   // Blocks
@@ -468,7 +520,8 @@ export class Game {
    * Finds resting groups, works out which are held up, and sets the rest
    * moving. A group is held up by ground, a popping block, or a held-up block
    * of another group. Never by the bot, and never by a moving block. Header
-   * tiles are anchored: they mark a layer's top and never fall.
+   * tiles and steel are anchored: the line marks a layer's top, steel is
+   * girders, and neither ever falls.
    */
   private settle(): void {
     this.dirty = false;
@@ -502,7 +555,8 @@ export class Game {
       }
       const p = cells[0]!;
       const x = p % W;
-      if (cut || low < seen || g.kindAt(x, (p - x) / W) === HEADER) held[id] = 1;
+      const k = g.kindAt(x, (p - x) / W);
+      if (cut || low < seen || k === HEADER || k === STEEL) held[id] = 1;
     });
     for (let changed = true; changed; ) {
       changed = false;
@@ -527,7 +581,8 @@ export class Game {
       .sort((a, b) => b.low - a.low);
     let wobbled = false;
     for (const { cells } of loose) {
-      let state: Body['state'] = WOBBLE;
+      // A loose stone gives no warning: it drops at once.
+      let state: Body['state'] = cells.length === 1 && g.kindAt(cells[0]! % W, Math.floor(cells[0]! / W)) === STONE ? FALL : WOBBLE;
       let timer = this.wobbleTicks;
       let combo = this.cause;
       for (const p of cells) {
@@ -724,8 +779,6 @@ export class Game {
       this.maxCombo = Math.max(this.maxCombo, combo);
       const sats = R.POP_SATS * bits.length * combo;
       this.sats += sats;
-      // Fees: combos pay power, and never halve. A first pop is no combo yet.
-      this.power = Math.min(R.POWER_MAX, this.power + R.COMBO_POWER * bits.length * (combo - 1));
       this.events.push({ type: 'pop', bits, combo, sats });
     }
   }
@@ -738,6 +791,11 @@ export class Game {
 
   private get rockHits(): number {
     return R.ROCK_HITS - 1 + Math.floor(this.difficulty / 1000);
+  }
+
+  /** Bombs burn shorter, level by level. */
+  private get fuseTicks(): number {
+    return Math.max(R.MIN_FUSE_TICKS, R.FUSE_TICKS - Math.max(0, this.layer - R.BOMB_LEVEL) * R.FUSE_STEP);
   }
 
   /** Keeps KEEP_ABOVE rows above the bot and GEN_AHEAD below it. */
@@ -762,8 +820,4 @@ const NEIGHBOURS: [number, number][] = [
 /** Halvings so far at layer k: one every HALVING_LAYERS layers, from layer 1. */
 function halvingsAt(k: number): number {
   return k < 1 ? 0 : Math.floor((k - 1) / R.HALVING_LAYERS);
-}
-
-function clamp(v: number, lo: number, hi: number): number {
-  return Math.min(hi, Math.max(lo, v));
 }

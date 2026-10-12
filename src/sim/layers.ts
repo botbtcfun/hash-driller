@@ -1,28 +1,8 @@
-import { CELL, COLOR, FEE, HEADER, NONCE, ROCK, type Row, parseRow } from './grid';
+import { BOMB, COLOR, FEE, HEADER, NONCE, ROCK, type Row, STEEL, STONE, parseRow } from './grid';
 import { Rng } from './rng';
-import {
-  CELL_CHANCE,
-  COLORS,
-  CONTESTED_REVEALS,
-  CONTESTED_ROCK,
-  FEE_CHANCE,
-  FIELD_TOP,
-  FIRST_NONCE_MAX_ROW,
-  FIRST_NONCE_MIN_ROW,
-  LAYER_ROWS,
-  NONCE_MAX_ROW,
-  NONCE_MIN_ROW,
-  ROCK_BASE,
-  ROCK_MAX,
-  ROCK_STEP,
-  STICK_LEFT,
-  STICK_UP,
-  TOPSOIL_CELL_CHANCE,
-  TOPSOIL_COLORS,
-  TOPSOIL_FEE_CHANCE,
-  TOPSOIL_ROWS,
-  WIDTH,
-} from './rules';
+import * as R from './rules';
+import { FIELD_TOP, LAYER_ROWS, TOPSOIL_ROWS, WIDTH } from './rules';
+
 
 /** A mined block a layer is made from, as the API serves it. */
 export interface LayerInfo {
@@ -64,6 +44,8 @@ export class Mine {
   private y = 0;
   private rng: Rng | null = null;
   private rngLayer = -1;
+  /** Whether the last generated row has a steel bar. */
+  private prevSteel = false;
   /** The colours of the last generated row, -1 where it had no colour. */
   private prev = new Int8Array(WIDTH).fill(-1);
   /** Where the current layer's nonce goes. */
@@ -96,7 +78,7 @@ export class Mine {
       this.rng = new Rng(`${this.spec.seed}:${k}:${b ? `${b.id}:${b.winner ?? '-'}:${b.target ?? '-'}` : '-'}`);
       this.rngLayer = k;
       if (k >= 1) {
-        const [lo, hi] = k === 1 ? [FIRST_NONCE_MIN_ROW, FIRST_NONCE_MAX_ROW] : [NONCE_MIN_ROW, NONCE_MAX_ROW];
+        const [lo, hi] = k === 1 ? [R.FIRST_NONCE_MIN_ROW, R.FIRST_NONCE_MAX_ROW] : [R.NONCE_MIN_ROW, R.NONCE_MAX_ROW];
         this.nonceY = headerY(k) + lo + this.rng.below(hi - lo + 1);
         this.nonceX = this.rng.below(WIDTH);
       }
@@ -110,40 +92,55 @@ export class Mine {
     }
 
     const info = this.info(k);
-    const colors = k === 0 ? TOPSOIL_COLORS : COLORS;
-    let rock = k === 0 ? 0 : Math.min(ROCK_BASE + (k - 1) * ROCK_STEP, ROCK_MAX);
-    if (info && info.reveals >= CONTESTED_REVEALS) rock += CONTESTED_ROCK;
-    const cells = k === 0 ? TOPSOIL_CELL_CHANCE : CELL_CHANCE;
+    const colors = k === 0 ? R.TOPSOIL_COLORS : R.COLORS;
+    let rock = share(k, R.ROCK_LEVEL, R.ROCK_BASE, R.ROCK_STEP, R.ROCK_MAX);
+    if (rock && info && info.reveals >= R.CONTESTED_REVEALS) rock += R.CONTESTED_ROCK;
+    const stone = share(k, R.STONE_LEVEL, R.STONE_BASE, R.STONE_STEP, R.STONE_MAX);
     const row = new Int8Array(WIDTH).fill(-1);
     for (let x = 0; x < WIDTH; x++) {
       if (rng.chance(rock)) {
         kind[x] = ROCK;
         continue;
       }
+      if (rng.chance(stone)) {
+        kind[x] = STONE;
+        continue;
+      }
       const r = rng.float();
       const left = x > 0 ? row[x - 1]! : -1;
       const up = this.prev[x]!;
       let c: number;
-      if (left >= 0 && r < STICK_LEFT) c = left;
-      else if (up >= 0 && up < colors && r < STICK_LEFT + STICK_UP) c = up;
+      if (left >= 0 && r < R.STICK_LEFT) c = left;
+      else if (up >= 0 && up < colors && r < R.STICK_LEFT + R.STICK_UP) c = up;
       else c = rng.below(colors);
       kind[x] = COLOR;
       color[x] = c;
       row[x] = c;
     }
-    if (rng.chance(cells)) {
-      const x = rng.below(WIDTH);
-      kind[x] = CELL;
-      color[x] = 0;
-      row[x] = -1;
-    }
-    if (rng.chance(k === 0 ? TOPSOIL_FEE_CHANCE : FEE_CHANCE)) {
-      const x = rng.below(WIDTH);
-      if (kind[x] !== CELL) {
-        kind[x] = FEE;
+    // One steel bar a row at most, and never in the row under another: a bar
+    // is at most 4 of the 9 columns, so there is always a way around it.
+    const steel = rng.chance(share(k, R.STEEL_LEVEL, R.STEEL_BASE, R.STEEL_STEP, R.STEEL_MAX));
+    if (steel && !this.prevSteel) {
+      const length = R.STEEL_BAR_MIN + rng.below(R.STEEL_BAR_MAX - R.STEEL_BAR_MIN + 1);
+      const x0 = rng.below(WIDTH - length + 1);
+      for (let x = x0; x < x0 + length; x++) {
+        kind[x] = STEEL;
         color[x] = 0;
         row[x] = -1;
       }
+    }
+    this.prevSteel = steel && !this.prevSteel;
+    if (rng.chance(share(k, R.BOMB_LEVEL, R.BOMB_BASE, R.BOMB_STEP, R.BOMB_MAX))) {
+      const x = rng.below(WIDTH);
+      kind[x] = BOMB;
+      color[x] = 0;
+      row[x] = -1;
+    }
+    if (rng.chance(k === 0 ? R.TOPSOIL_FEE_CHANCE : R.FEE_CHANCE)) {
+      const x = rng.below(WIDTH);
+      kind[x] = FEE;
+      color[x] = 0;
+      row[x] = -1;
     }
     if (y === this.nonceY) {
       kind[this.nonceX] = NONCE;
@@ -153,4 +150,9 @@ export class Mine {
     this.prev = row;
     return { kind, color };
   }
+}
+
+/** A kind of block's share at layer k: none before its level, then a base growing a step a level to a cap. */
+function share(k: number, level: number, base: number, step: number, max: number): number {
+  return k < level ? 0 : Math.min(base + (k - level) * step, max);
 }

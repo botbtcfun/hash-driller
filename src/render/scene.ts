@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 
 import { FALL, type Game, type GameEvent, POP, WOBBLE } from '../sim/game';
-import { CELL, COLOR, FEE, HEADER, NONCE, ROCK } from '../sim/grid';
+import { BOMB, COLOR, FEE, HEADER, NONCE, ROCK, STEEL, STONE } from '../sim/grid';
 import { headerY, layerAt } from '../sim/layers';
 import { FALL_TICKS, TICK_HZ, VIEW_ABOVE, WIDTH } from '../sim/rules';
 import type { Input } from './input';
@@ -252,7 +252,14 @@ export class PlayScene extends Phaser.Scene {
       return `block${color}_${mask}`;
     }
     if (k === ROCK) return `rock${Math.min(g.hits[g.i(x, y)]!, 2)}`;
-    if (k === CELL) return `cell${(game.tick >> 4) & 1}`;
+    if (k === STEEL) return 'steel';
+    if (k === STONE) return 'stone';
+    if (k === BOMB) {
+      // Lit, it blinks, and faster as the fuse burns down.
+      const fuse = g.hits[g.i(x, y)]!;
+      if (!fuse) return 'bomb0';
+      return `bomb${(game.tick >> (fuse > 30 ? 3 : 1)) & 1 ? 2 : 1}`;
+    }
     if (k === FEE) return `fee${(game.tick >> 3) % 6 === 0 ? 1 : 0}`;
     if (k === HEADER) return 'header';
     if (k === NONCE) {
@@ -390,9 +397,22 @@ export class PlayScene extends Phaser.Scene {
       } else if (e.type === 'rock') {
         this.sparks.setParticleTint(0x8fa6d9);
         this.sparks.explode(e.broken ? 8 : 3, e.x * TILE + 8, e.y * TILE + 8);
-      } else if (e.type === 'cell') {
+      } else if (e.type === 'clang') {
+        this.sparks.setParticleTint(0xeef2fb);
+        this.sparks.explode(3, e.x * TILE + 8, e.y * TILE + 8);
+        this.cameras.main.shake(60, 0.002);
+      } else if (e.type === 'fuse') {
         this.sparks.setParticleTint(0xffd60a);
-        this.sparks.explode(10, e.x * TILE + 8, e.y * TILE + 8);
+        this.sparks.explode(6, e.x * TILE + 12, e.y * TILE + 2);
+      } else if (e.type === 'blast') {
+        for (const b of e.bits) {
+          this.sparks.setParticleTint(b.kind === COLOR ? PARTICLE_COLORS[b.color]! : 0xffc46b);
+          this.sparks.explode(6, b.x * TILE + 8, b.y * TILE + 8);
+        }
+        this.sparks.setParticleTint(0xffffff);
+        this.sparks.explode(24, e.x * TILE + 8, e.y * TILE + 8);
+        this.cameras.main.flash(160, 255, 196, 107);
+        this.cameras.main.shake(320, 0.014);
       } else if (e.type === 'fee') {
         this.sparks.setParticleTint(0xf7931a);
         this.sparks.explode(8, e.x * TILE + 8, e.y * TILE + 8);

@@ -1,6 +1,5 @@
 import type { Game, GameEvent } from '../sim/game';
 import { HEADER } from '../sim/grid';
-import { POWER_MAX } from '../sim/rules';
 import { CHORDS, renderMusic, type Stems } from './music';
 import {
   type Out,
@@ -49,7 +48,6 @@ export class Sound {
   private last = new Map<string, number>();
   /** Fees picked up since the last nonce: each rings a step higher. */
   private fees = 0;
-  private nextBeat = 0;
 
   /** Renders the music, once. Called after the game is on screen, so it doesn't slow the start. */
   prepare(): Promise<Stems | null> {
@@ -120,10 +118,7 @@ export class Sound {
     this.musicBus.gain.linearRampToValueAtTime(MUSIC_VOL, t + 2);
   }
 
-  /**
-   * Once a frame: how hot the music runs, muffled while paused, low on power
-   * or over, and a heartbeat when power is low.
-   */
+  /** Once a frame: how hot the music runs, muffled while paused or over. */
   frame(game: Game, paused: boolean): void {
     const ctx = this.ctx;
     if (!ctx) return;
@@ -133,16 +128,10 @@ export class Sound {
       this.level = level;
       this.stems.forEach((g, i) => g.gain.setTargetAtTime(i === 0 || i <= level ? 1 : 0, t, i === 2 && level < 2 ? 0.08 : 0.3));
     }
-    const low = game.power < POWER_MAX / 4 && game.bot.action !== 'dead' && !game.over;
-    const muffled = paused || game.over || low;
+    const muffled = paused || game.over;
     if (muffled !== this.muffled) {
       this.muffled = muffled;
       this.muffle.frequency.setTargetAtTime(muffled ? 700 : 20000, t, 0.12);
-    }
-    if (low && !paused && !this.muted && t >= this.nextBeat) {
-      this.nextBeat = t + 0.8;
-      blip(ctx, this.fx, t, { from: 70, to: 45, glide: 0.05, vol: 0.32, decay: 0.08 });
-      blip(ctx, this.fx, t + 0.17, { from: 62, to: 42, glide: 0.05, vol: 0.22, decay: 0.08 });
     }
   }
 
@@ -185,9 +174,23 @@ export class Sound {
             blip(ctx, out, t, { from: 90, to: 45, vol: 0.25, decay: 0.08 });
           }
           break;
-        case 'cell':
-          [77, 80, 84, 89].forEach((m, i) => bell(ctx, out, t + i * 0.045, m, { vol: 0.07, p: -0.3 + i * 0.2 }));
-          sweep(ctx, out, t, 0.3, { vol: 0.08, from: 600, to: 5000, q: 1.2, shape: (x) => Math.sin(Math.PI * x) ** 2 });
+        case 'clang':
+          // Steel: a dull metallic knock, and nothing gives.
+          if (!this.every('clang', 0.12)) break;
+          bell(ctx, out, t, 90, { vol: 0.05, len: 0.18, rev: 0.1, dly: 0 });
+          bell(ctx, out, t, 73, { vol: 0.04, len: 0.12, rev: 0.1, dly: 0 });
+          blip(ctx, out, t, { from: 180, to: 140, vol: 0.12, decay: 0.04 });
+          break;
+        case 'fuse':
+          // A hiss as the fuse catches, and a tick.
+          sweep(ctx, out, t, 0.5, { vol: 0.12, type: 'highpass', from: 5000, to: 7000, q: 0.7, shape: (x) => Math.exp(-x * 3) });
+          blip(ctx, out, t, { from: 1200, to: 900, vol: 0.12, decay: 0.03 });
+          break;
+        case 'blast':
+          impact(ctx, out, t, 0.5);
+          crash(ctx, out, t, 0.05);
+          sweep(ctx, out, t, 0.9, { vol: 0.3, type: 'lowpass', from: 3000, to: 200, shape: (x) => Math.exp(-x * 3) });
+          e808(ctx, out, t, 0.9, 29, { from: 41, glide: 0.25, vol: 0.28, drive: 8 });
           break;
         case 'fee': {
           // Ka-ching, a step higher for each fee since the last nonce.
@@ -238,8 +241,8 @@ export class Sound {
             sweep(ctx, out, t, 0.35, { vol: 0.2, type: 'lowpass', from: 2500, to: 300, shape: (x) => Math.exp(-x * 3) });
             e808(ctx, out, t, 0.8, 29, { from: 41, glide: 0.2, vol: 0.25, drive: 6 });
           } else {
-            blip(ctx, out, t, { type: 'sawtooth', from: 440, to: 55, glide: 0.3, vol: 0.3, decay: 0.45, cut: 2500, cutTo: 150 });
-            downlifter(ctx, out, t, 1, 0.08);
+            // The blast itself already boomed: a fall away after it.
+            downlifter(ctx, out, t + 0.1, 1, 0.08);
             subDrop(ctx, out, t + 0.3, 0.2);
           }
           break;

@@ -110,30 +110,100 @@ function block(ctx: Ctx, color: number, mask: number): void {
   grid(ctx, SYMBOLS[color]!, { '#': lo }, 6, 6);
 }
 
-/** A power cell, with its light lit on frame 1. */
-function cell(ctx: Ctx, frame: number): void {
-  const glow = frame ? '#fff3a8' : '#ffd60a';
+/** Hard rock, cracked a little more with each hit it has taken. */
+function rock(ctx: Ctx, hits: number): void {
+  const [base, hi, lo, speck] = ROCK;
+  ctx.fillStyle = OUTLINE;
+  ctx.fillRect(0, 0, TILE, TILE);
+  ctx.fillStyle = base!;
+  ctx.fillRect(1, 1, TILE - 2, TILE - 2);
+  ctx.fillStyle = hi!;
+  ctx.fillRect(1, 1, TILE - 2, 1);
+  ctx.fillRect(1, 1, 1, TILE - 2);
+  ctx.fillStyle = lo!;
+  ctx.fillRect(1, TILE - 2, TILE - 2, 1);
+  ctx.fillRect(TILE - 2, 1, 1, TILE - 2);
+  ctx.fillStyle = speck!;
+  for (const [x, y] of [[4, 4], [10, 3], [7, 9], [12, 11], [3, 12], [11, 7]]) ctx.fillRect(x!, y!, 2, 1);
+  grid(ctx, CRACKS[hits]!, { '#': OUTLINE }, 0, 4);
+}
+
+/** Steel: a riveted silver plate, bright where rock is dark, so it reads as something else. */
+function steel(ctx: Ctx): void {
+  grid(
+    ctx,
+    [
+      'oooooooooooooooo',
+      'ohhhhhhhhhhhhhho',
+      'ohbbbbbbbbbbbbso',
+      'ohbRrbbbbbbRrbso',
+      'ohbrrbbbbbbrrbso',
+      'ohbbbbbbbbbbbbso',
+      'ohbbbbbbbbbbbbso',
+      'ohbbbbbbbbbbbbso',
+      'ohbbbbbbbbbbbbso',
+      'ohbbbbbbbbbbbbso',
+      'ohbbbbbbbbbbbbso',
+      'ohbRrbbbbbbRrbso',
+      'ohbrrbbbbbbrrbso',
+      'ohbbbbbbbbbbbbso',
+      'ohssssssssssssso',
+      'oooooooooooooooo',
+    ],
+    { o: OUTLINE, h: '#eef2fb', b: '#aab6d2', s: '#6a7699', R: '#ffffff', r: '#6a7699' },
+  );
+}
+
+/** A loose stone: a round sandy boulder, round so it looks ready to roll. */
+function stone(ctx: Ctx): void {
   grid(
     ctx,
     [
       '................',
-      '......####......',
-      '.....######.....',
-      '....oyyyyyyo....',
-      '....oyGGyyyo....',
-      '....oyGyyyyo....',
-      '....oyyyyyyo....',
-      '....oyyyyyyo....',
-      '....oyy##yyo....',
-      '....oy####yo....',
-      '....oyy##yyo....',
-      '....oyyyyyyo....',
-      '....oyyyyyyo....',
-      '....oyyyyyyo....',
-      '....oooooooo....',
+      '.....oooooo.....',
+      '...oohhhhbboo...',
+      '..ohhhbbbbbbbo..',
+      '.ohhbbbbbbbbbbo.',
+      '.ohbbbbbcbbbbso.',
+      'ohbbbbbbcbbbbbso',
+      'ohbbbbbbccbbbbso',
+      'obbbbbbbbcbbbbso',
+      'obbbbbbbbbbbbsso',
+      'obbbbbbbbbbbbsso',
+      '.obbbbbbbbbbsso.',
+      '.osbbbbbbbbssso.',
+      '..osssbbbsssso..',
+      '...oossssssoo...',
+      '.....oooooo.....',
+    ],
+    { o: OUTLINE, h: '#f0d9a8', b: '#c9a066', s: '#8a6a3c', c: '#5c4424' },
+  );
+}
+
+/** A bomb: frame 0 waiting, frames 1 and 2 lit, its spark flickering and its shell flashing. */
+function bomb(ctx: Ctx, frame: number): void {
+  const shell = frame === 2 ? '#ff4d79' : '#39405e';
+  grid(
+    ctx,
+    [
+      '...........ss...',
+      '..........f..s..',
+      '.........f......',
+      '.....ooooff.....',
+      '....oddddddo....',
+      '...odhhddddddo..',
+      '..odhhdddddddo..',
+      '..oddddddddddo..',
+      '..oddddddddddo..',
+      '..oddddddddddo..',
+      '..oddddddddkdo..',
+      '..odddddddkkdo..',
+      '...oddddkkkdo...',
+      '....oddddddo....',
+      '.....oooooo.....',
       '................',
     ],
-    { '#': '#7a6300', o: '#7a6300', y: '#ffd60a', G: glow },
+    { o: OUTLINE, d: shell, h: '#c9d3e8', k: '#1d2236', f: '#a3784a', s: frame ? (frame === 1 ? '#ffd60a' : '#ffffff') : '#6a7699' },
   );
 }
 
@@ -179,7 +249,7 @@ function fee(ctx: Ctx, frame: number): void {
   }
 }
 
-const ICONS = { cell, fee, nonce };
+const ICONS = { rock: (ctx: Ctx) => rock(ctx, 0), steel, stone, bomb: (ctx: Ctx) => bomb(ctx, 0), fee, nonce };
 const iconUrls = new Map<string, string>();
 
 /**
@@ -203,26 +273,10 @@ export function makeTextures(scene: Phaser.Scene): void {
     for (let mask = 0; mask < 16; mask++) canvas(scene, `block${c}_${mask}`, TILE, TILE, (ctx) => block(ctx, c, mask));
   }
 
-  for (let hits = 0; hits < CRACKS.length; hits++) {
-    canvas(scene, `rock${hits}`, TILE, TILE, (ctx) => {
-      const [base, hi, lo, speck] = ROCK;
-      ctx.fillStyle = OUTLINE;
-      ctx.fillRect(0, 0, TILE, TILE);
-      ctx.fillStyle = base!;
-      ctx.fillRect(1, 1, TILE - 2, TILE - 2);
-      ctx.fillStyle = hi!;
-      ctx.fillRect(1, 1, TILE - 2, 1);
-      ctx.fillRect(1, 1, 1, TILE - 2);
-      ctx.fillStyle = lo!;
-      ctx.fillRect(1, TILE - 2, TILE - 2, 1);
-      ctx.fillRect(TILE - 2, 1, 1, TILE - 2);
-      ctx.fillStyle = speck!;
-      for (const [x, y] of [[4, 4], [10, 3], [7, 9], [12, 11], [3, 12], [11, 7]]) ctx.fillRect(x!, y!, 2, 1);
-      grid(ctx, CRACKS[hits]!, { '#': OUTLINE }, 0, 4);
-    });
-  }
-
-  for (const frame of [0, 1]) canvas(scene, `cell${frame}`, TILE, TILE, (ctx) => cell(ctx, frame));
+  for (let hits = 0; hits < CRACKS.length; hits++) canvas(scene, `rock${hits}`, TILE, TILE, (ctx) => rock(ctx, hits));
+  canvas(scene, 'steel', TILE, TILE, steel);
+  canvas(scene, 'stone', TILE, TILE, stone);
+  for (const frame of [0, 1, 2]) canvas(scene, `bomb${frame}`, TILE, TILE, (ctx) => bomb(ctx, frame));
 
   canvas(scene, 'header', TILE, TILE, (ctx) => {
     ctx.fillStyle = OUTLINE;

@@ -4,16 +4,15 @@ import { isTouch } from './hud';
 
 /** What the coach says in each lesson, with the things to look for drawn as in the game. */
 function say(lesson: Lesson): string {
-  const cell = icon('cell', 'power cell');
   const fee = icon('fee', 'fee coin');
   const nonce = icon('nonce', 'golden #');
   switch (lesson) {
     case 'dig':
       return isTouch() ? '<kbd>↓</kbd> on the d-pad digs down.<br>Dig through the blocks under you.' : '<kbd>↓</kbd> digs down.<br>Dig through the blocks under you.';
-    case 'cell':
-      return `Your power bar drains as you go.<br><kbd>→</kbd> digs sideways: grab the ${cell}!`;
+    case 'coin':
+      return `<kbd>→</kbd> digs sideways. Coins are fees:<br>dig over to the ${fee} and grab it!`;
     case 'fee':
-      return `A ${fee} is a fee: the ${nonce} pays it out.<br>Go <kbd>←</kbd> and grab it.`;
+      return `Fees pay out with the level's ${nonce}.<br>Go <kbd>←</kbd> for the other ${fee}!`;
     case 'loose':
       return '<em>LOOK OUT!</em> A red <em>!</em> means the block<br>above you came loose. Dig it with <kbd>↑</kbd>!';
     case 'level':

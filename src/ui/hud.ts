@@ -1,19 +1,27 @@
 import type { Game, GameEvent } from '../sim/game';
-import { POWER_MAX } from '../sim/rules';
+import { icon } from '../render/sprites';
+import { BOMB_LEVEL, ROCK_LEVEL, STEEL_LEVEL, STONE_LEVEL } from '../sim/rules';
 
 const $ = (id: string) => document.getElementById(id)!;
 /** On a touch screen, say tap, not press. */
 export const isTouch = () => document.body.classList.contains('touch');
 const sats = (n: number) => n.toLocaleString('en-US');
 
+/** What levels 2 to 5 each bring: the block, its name and how it works, announced as the level starts. */
+const NEW_BLOCKS: Record<number, [sprite: Parameters<typeof icon>[0], name: string, rule: string]> = {
+  [ROCK_LEVEL]: ['rock', 'HARD ROCK', 'TAKES A FEW HITS TO BREAK'],
+  [STEEL_LEVEL]: ['steel', 'STEEL', "CAN'T BE DUG: GO AROUND IT"],
+  [STONE_LEVEL]: ['stone', 'LOOSE STONE', 'DROPS THE MOMENT NOTHING<br>HOLDS IT, WITH NO WARNING'],
+  [BOMB_LEVEL]: ['bomb', 'BOMB', 'DIG IT AND RUN: IT BLASTS<br>ALL AROUND IT, STEEL TOO'],
+};
+
 /** The side panel, the banners and the overlay. */
 export class Hud {
   private shown = '';
 
   update(game: Game): void {
-    const power = Math.ceil((game.power * 100) / POWER_MAX);
     const goal = this.goal(game);
-    const state = [goal, game.layer, game.depth, game.sats, power, game.lives, game.chain, game.pending, game.difficulty, game.mined, game.missed].join();
+    const state = [goal, game.layer, game.depth, game.sats, game.lives, game.chain, game.pending, game.difficulty, game.mined, game.missed].join();
     if (state === this.shown) return;
     this.shown = state;
     $('goal').innerHTML = goal;
@@ -25,14 +33,8 @@ export class Hud {
     $('s-chain').textContent = game.chain ? `CHAIN ×${game.chain}` : 'NO CHAIN';
     const lives = $('s-lives');
     if (lives.childElementCount !== Math.max(0, game.lives)) lives.replaceChildren(...Array.from({ length: Math.max(0, game.lives) }, () => document.createElement('i')));
-    const strip = $('s-power');
-    strip.style.width = `${power}%`;
-    strip.classList.toggle('low', power <= 25);
     $('depth').textContent = `${game.depth} m`;
     $('sats').textContent = sats(game.sats);
-    const bar = $('power');
-    bar.style.width = `${power}%`;
-    bar.classList.toggle('low', power <= 25);
     $('lives').textContent = `${Math.max(0, game.lives)}`;
     $('chain').textContent = game.chain ? `×${game.chain}` : '-';
     $('fees').textContent = sats(game.pending);
@@ -51,9 +53,11 @@ export class Hud {
         this.toast(`LEVEL ${e.layer} MISSED${lost ? `<br>${lost}` : ''}`);
       } else if (e.type === 'layer') {
         this.toast(`LEVEL ${e.layer}<br>FIND ITS GOLDEN <b>#</b>`);
-        if (e.halving) this.toast('<b>HALVING!</b><br>REWARD AND POWER CELLS HALVED');
+        const fresh = NEW_BLOCKS[e.layer];
+        if (fresh) this.toast(`<b>NEW:</b> ${icon(fresh[0], '')} ${fresh[1]}<br>${fresh[2]}`, 'new');
+        if (e.halving) this.toast('<b>HALVING!</b><br>THE BLOCK REWARD HALVED');
       } else if (e.type === 'die') {
-        this.toast(e.cause === 'power' ? 'POWER OUT' : 'CRUSHED');
+        this.toast(e.cause === 'blast' ? 'BLOWN UP' : 'CRUSHED');
       }
     }
   }
@@ -78,10 +82,13 @@ export class Hud {
     for (const id of ['sound', 'sound-pad']) $(id).setAttribute('aria-pressed', String(on));
   }
 
-  /** A banner that fades by itself; `long` keeps it up for reading a hint. */
-  toast(html: string, long = false): void {
+  /**
+   * A banner that fades by itself. A `long` one stays up for reading a hint,
+   * and a `new` one, for a new kind of block, longer still.
+   */
+  toast(html: string, kind: boolean | 'new' = false): void {
     const el = document.createElement('div');
-    el.className = long ? 'toast long' : 'toast';
+    el.className = kind === 'new' ? 'toast new' : kind ? 'toast long' : 'toast';
     el.innerHTML = html;
     el.addEventListener('animationend', () => el.remove());
     const banner = $('banner');

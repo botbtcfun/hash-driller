@@ -5,8 +5,11 @@ A pixel-art digging game. Dig down level by level: every level has one golden
 coins: they're transaction fees, and the # pays them out with the level's
 subsidy, which halves as you go deeper while fees grow. Mine level after level
 to grow your chain, and each one pays more; pass the next LEVEL line without
-its # and the chain breaks and its fees are lost. Power drains, so grab
-the yellow power cells, and anything you dig out from under falls.
+its # and the chain breaks and its fees are lost. Anything you dig out from
+under falls, and every level from 2 to 5 brings a new kind of block: hard
+rock that takes a few hits, steel you have to go around, loose stones that
+drop without warning, and bombs that blast everything around them. Deeper
+down there is more of each, and loose blocks give you less warning.
 
 Each level is a real [botBTC](https://botbtc.fun) block, and its # is the
 block's nonce. Made for Round 01 (games) of
@@ -27,7 +30,7 @@ can skip it, and replay it from HOW TO PLAY on the start screen.
 | M | Sound on or off |
 
 On phones and tablets the shaft fills the screen. A strip with your sats,
-level, chain, lives and power floats over the top, and a d-pad you can slide a
+level, chain and lives floats over the top, and a d-pad you can slide a
 thumb across floats at the bottom. Hold its centre to drag it where you like:
 it stays there, and the pause and sound buttons move to the corner it leaves
 clear. In landscape the controls sit either side of the shaft. Add `?debug` to

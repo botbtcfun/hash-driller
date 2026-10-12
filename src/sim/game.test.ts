@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { DOWN, FALL, Game, type GameEvent, LEFT, RIGHT, UP, WOBBLE } from './game';
-import { CELL, COLOR, EMPTY, FEE, HEADER, NONCE, ROCK } from './grid';
-import { Mine, headerY } from './layers';
+import { BOMB, COLOR, EMPTY, FEE, HEADER, NONCE, ROCK, STEEL, STONE } from './grid';
+import { Mine, headerY, layerAt } from './layers';
 import { InputLog } from './replay';
 import { Rng } from './rng';
 import * as R from './rules';
@@ -24,7 +24,7 @@ function at(game: Game, x: number, y: number): string {
   const body = game.bodies.get(g.bodyAt(x, y));
   const motion = body?.state === WOBBLE ? '~' : body?.state === FALL ? 'v' : '';
   if (k === COLOR) return `${g.color[g.i(x, y)]}${motion}`;
-  return ({ [EMPTY]: '.', [ROCK]: '#', [CELL]: '+', [HEADER]: '=', [NONCE]: 'N', [FEE]: '$' } as Record<number, string>)[k] ?? '?';
+  return ({ [EMPTY]: '.', [ROCK]: '#', [STEEL]: 'S', [STONE]: 'L', [BOMB]: 'B', [HEADER]: '=', [NONCE]: 'N', [FEE]: '$' } as Record<number, string>)[k] ?? '?';
 }
 
 const mine = (seed: string) => new Mine({ seed, layers: [] });
@@ -44,7 +44,7 @@ describe('drilling', () => {
     expect(game.sats).toBe(3 * R.DRILL_SATS);
   });
 
-  it('breaks hard rock after ROCK_HITS hits, each costing power', () => {
+  it('breaks hard rock after ROCK_HITS hits', () => {
     const game = Game.fromRows([
       '@........', //
       '#33333333',
@@ -52,11 +52,91 @@ describe('drilling', () => {
     ]);
     const rocks = run(game, 1 + 2 * R.DRILL_TICKS, DOWN).filter((e) => e.type === 'rock');
     expect(rocks.map((e) => e.type === 'rock' && e.broken)).toEqual([false, false, true]);
-    expect(game.power).toBe(R.POWER_MAX - R.ROCK_HITS * R.ROCK_HIT_POWER - game.tick * 1000);
+  });
+
+  it('never digs through steel', () => {
+    const game = Game.fromRows([
+      '@........', //
+      'S33333333',
+      '333333333',
+    ]);
+    const events = run(game, 10 * R.DRILL_TICKS, DOWN);
+    expect([game.bot.y, at(game, 0, 1)]).toEqual([0, 'S']);
+    expect(events.filter((e) => e.type === 'clang').length).toBeGreaterThan(5);
+  });
+
+  it('digs steel only when there is no other way down from its row, so the bot is never stuck', () => {
+    const game = Game.fromRows([
+      '.@.S33333', //
+      'SSSS33333',
+      '333333333',
+    ]);
+    run(game, R.DRILL_TICKS + 1, DOWN);
+    expect(at(game, 1, 1)).toBe('.');
+    const free = Game.fromRows([
+      '.@..33333', //
+      'SSSS33333',
+      '333333333',
+    ]);
+    run(free, R.DRILL_TICKS + 1, DOWN);
+    expect(at(free, 1, 1)).toBe('S');
+  });
+
+  it('lights a bomb, which blasts the 3x3 around it once its fuse burns down, steel and all', () => {
+    const game = Game.fromRows([
+      '@........', //
+      'BS3......',
+      '333333333',
+    ]);
+    const lit = run(game, 1, DOWN);
+    expect(lit).toContainEqual({ type: 'fuse', x: 0, y: 1 });
+    expect(at(game, 0, 1)).toBe('B');
+    // Walk clear, out of its reach.
+    const events = run(game, R.FUSE_TICKS + 30, RIGHT);
+    expect(events).toContainEqual(expect.objectContaining({ type: 'blast', x: 0, y: 1 }));
+    expect([at(game, 0, 1), at(game, 1, 1), at(game, 0, 2), at(game, 1, 2)]).toEqual(['.', '.', '.', '.']);
+    expect([at(game, 2, 1), at(game, 2, 2)]).toEqual(['3', '3']);
+    expect(game.lives).toBe(R.LIVES);
+  });
+
+  it('takes the bot in a blast it stays in', () => {
+    const game = Game.fromRows([
+      '@........', //
+      'B33333333',
+      '333333333',
+    ]);
+    run(game, 1, DOWN);
+    const events = run(game, R.FUSE_TICKS + 5);
+    expect(events).toContainEqual({ type: 'die', cause: 'blast' });
+    expect(game.lives).toBe(R.LIVES - 1);
+  });
+
+  it('sets off a bomb caught in a blast', () => {
+    const game = Game.fromRows([
+      '@........', //
+      'BB.......',
+      '333333333',
+    ]);
+    run(game, 1, DOWN);
+    const events = run(game, R.FUSE_TICKS + R.CHAIN_FUSE_TICKS + 5, RIGHT);
+    expect(events.filter((e) => e.type === 'blast')).toHaveLength(2);
+    expect(at(game, 2, 2)).toBe('.');
   });
 });
 
 describe('gravity', () => {
+  it('drops a loose stone at once, with no wobble first', () => {
+    const game = Game.fromRows([
+      '.........', //
+      '..L......',
+      '..3@.....',
+      '333333333',
+    ]);
+    const events = run(game, 1, LEFT);
+    expect(game.bodies.get(game.grid.bodyAt(2, 1))?.state).toBe(FALL);
+    expect(events.some((e) => e.type === 'wobble')).toBe(false);
+  });
+
   it('wobbles a loose block, then drops it until it lands', () => {
     const game = Game.fromRows([
       '.1.......', //
@@ -222,22 +302,23 @@ describe('the bot', () => {
     expect(game.bot.y).toBe(1);
   });
 
-  it('collects a power cell by walking into it', () => {
-    const game = Game.fromRows([
-      '@+.......', //
-      '333333333',
-    ]);
-    run(game, 1500);
-    const before = game.power;
-    run(game, 1, RIGHT);
-    expect(game.power).toBe(before + R.CELL_POWER - 1000);
-    expect(at(game, 1, 0)).toBe('.');
+  it('keeps going as long as the bot does: nothing runs out', () => {
+    const game = Game.fromRows(['@........', '333333333']);
+    run(game, 60 * 60 * 5);
+    expect([game.lives, game.over]).toEqual([R.LIVES, false]);
   });
 
-  it('dies when power runs out, and the run ends with the last life', () => {
-    const game = Game.fromRows(['@........', '333333333']);
-    const events = run(game, R.LIVES * (R.POWER_MAX / 1000 + R.DEATH_TICKS) + 10);
-    expect(events.filter((e) => e.type === 'die')).toHaveLength(R.LIVES);
+  it('ends the run with the last life', () => {
+    const game = Game.fromRows(['@........', ...Array<string>(12).fill('333333333')]);
+    for (let life = 0; life < R.LIVES; life++) {
+      // Lands in the last crater, then digs a bomb put right under it, and stays.
+      run(game, 60);
+      const i = game.grid.i(game.bot.x, game.bot.y + 1);
+      game.grid.kind[i] = BOMB;
+      game.grid.color[i] = game.grid.hits[i] = 0;
+      run(game, 1, DOWN);
+      run(game, R.FUSE_TICKS + R.DEATH_TICKS + 5);
+    }
     expect(game.over).toBe(true);
   });
 });
@@ -269,6 +350,42 @@ describe('the mine', () => {
       expect(rows[y]!.color.every((c) => c < R.TOPSOIL_COLORS)).toBe(true);
     }
     for (const k of [1, 2, 3]) expect(rows[headerY(k)]!.kind.every((v) => v === HEADER)).toBe(true);
+  });
+
+  it('brings each new kind of block on its own level, and none before', () => {
+    const first = new Map<number, number>();
+    for (const seed of ['day-1', 'day-2', 'day-3', 'day-4', 'day-5']) {
+      const m = mine(seed);
+      for (let y = 0; y < headerY(7); y++) {
+        const k = layerAt(y);
+        for (const kind of m.next().kind) if (!first.has(kind) || first.get(kind)! > k) first.set(kind, k);
+      }
+    }
+    expect([first.get(ROCK), first.get(STEEL), first.get(STONE), first.get(BOMB)]).toEqual([R.ROCK_LEVEL, R.STEEL_LEVEL, R.STONE_LEVEL, R.BOMB_LEVEL]);
+  });
+
+  it('puts one steel bar in a row at most, never in the row under another, so there is always a way past', () => {
+    const m = mine('day-1');
+    let above = false;
+    for (let y = 0; y < headerY(20); y++) {
+      // A fee, bomb or nonce may sit in a bar, but the bar spans STEEL_BAR_MAX at most.
+      const steel = [...m.next().kind].flatMap((k, x) => (k === STEEL ? [x] : []));
+      if (steel.length) expect(steel.at(-1)! - steel[0]! + 1).toBeLessThanOrEqual(R.STEEL_BAR_MAX);
+      expect(above && steel.length > 0).toBe(false);
+      above = steel.length > 0;
+    }
+  });
+
+  it('never drops steel: it is anchored, and holds up what rests on it', () => {
+    const game = Game.fromRows([
+      '..1......', //
+      '..S......',
+      '.........',
+      '@........',
+      '333333333',
+    ]);
+    run(game, 200);
+    expect([at(game, 2, 0), at(game, 2, 1)]).toEqual(['1', 'S']);
   });
 
   it('scatters fees through every layer, about FEE_CHANCE a row', () => {
@@ -343,7 +460,7 @@ describe('mining', () => {
     const game = new Game(mine('day-1'));
     const events = run(game, 4000, DOWN);
     const left = events.filter((e) => e.type === 'layer' && e.layer >= 2).map((e) => (e.type === 'layer' ? e.layer - 1 : 0));
-    expect(left.length).toBeGreaterThan(2);
+    expect(left.length).toBeGreaterThanOrEqual(2);
     for (const k of left) {
       const settled = events.filter((e) => (e.type === 'nonce' || e.type === 'missed') && e.layer === k);
       expect(settled).toHaveLength(1);

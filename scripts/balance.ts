@@ -4,11 +4,11 @@
  *
  *   pnpm --filter @botbtc/drill balance [seeds=20] [minutes=5]
  */
-import { CELL, COLOR, EMPTY, FEE, NONCE, isItem } from '../src/sim/grid';
+import { BOMB, COLOR, EMPTY, FEE, NONCE, STEEL, STONE } from '../src/sim/grid';
 import { DOWN, FALL, Game, LEFT, RIGHT, UP, WOBBLE } from '../src/sim/game';
 import { Mine } from '../src/sim/layers';
 import { Rng } from '../src/sim/rng';
-import { CELL_POWER, COMBO_POWER, POWER_MAX, TICK_HZ } from '../src/sim/rules';
+import { TICK_HZ } from '../src/sim/rules';
 
 type Policy = (game: Game, rng: Rng, t: number) => number;
 
@@ -33,7 +33,29 @@ function danger(game: Game, x: number, y: number): boolean {
   return false;
 }
 
-/** Digs down, steps out from under loose blocks, and fetches power cells when low. */
+/** What can't be dug through on the way down: steel, and bombs, best left alone. */
+const blocked = (k: number) => k === STEEL || k === BOMB;
+
+/**
+ * Below is blocked: heads along the row for the nearest column it can dig
+ * down, going around steel and bombs in the way. 0 if there is none.
+ */
+function around(game: Game): number {
+  const { x, y } = game.bot;
+  const g = game.grid;
+  for (let d = 1; d < 9; d++) {
+    for (const dx of [-d, d]) {
+      const tx = x + dx;
+      if (tx < 0 || tx > 8 || blocked(g.kindAt(tx, y + 1))) continue;
+      let clear = true;
+      for (let xx = x + Math.sign(dx); xx !== tx + Math.sign(dx); xx += Math.sign(dx)) if (blocked(g.kindAt(xx, y))) clear = false;
+      if (clear) return dx < 0 ? LEFT : RIGHT;
+    }
+  }
+  return 0;
+}
+
+/** Digs down, steps out from under loose blocks, and goes around what can't be dug. */
 const careful: Policy = (game) => {
   const { x, y } = game.bot;
   const g = game.grid;
@@ -41,24 +63,11 @@ const careful: Policy = (game) => {
   if (danger(game, x, y)) {
     for (const dx of [-1, 1]) {
       const k = g.kindAt(x + dx, y);
-      if ((k === EMPTY || k === CELL) && !danger(game, x + dx, y)) return side(dx);
+      if (k === EMPTY && !danger(game, x + dx, y)) return side(dx);
     }
-    for (const dx of [-1, 1]) if (g.kindAt(x + dx, y) === COLOR && !danger(game, x + dx, y)) return side(dx);
+    for (const dx of [-1, 1]) if ((g.kindAt(x + dx, y) === COLOR || g.kindAt(x + dx, y) === STONE) && !danger(game, x + dx, y)) return side(dx);
   }
-  if (game.power < POWER_MAX / 2) {
-    let best: [number, number] | null = null;
-    for (let yy = y; yy <= y + 6; yy++) {
-      for (let xx = 0; xx < 9; xx++) {
-        if (g.kindAt(xx, yy) !== CELL) continue;
-        const d = Math.abs(xx - x) + (yy - y);
-        if (!best || d < Math.abs(best[0] - x) + (best[1] - y)) best = [xx, yy];
-      }
-    }
-    if (best && best[0] !== x) {
-      const dx = best[0] < x ? -1 : 1;
-      return side(dx);
-    }
-  }
+  if (blocked(g.kindAt(x, y + 1))) return around(game);
   return DOWN;
 };
 
@@ -75,20 +84,20 @@ function nearest(game: Game, kind: number, from: number, to: number): [number, n
   return best;
 }
 
-/** Goes for power cells when low, then fees close by, then each nonce; otherwise as careful. */
+/** Goes for fees close by, then each nonce; otherwise as careful. */
 const miner: Policy = (game, rng, t) => {
   const { x, y } = game.bot;
   const g = game.grid;
   const side = (dx: number) => (dx < 0 ? LEFT : RIGHT);
-  if (danger(game, x, y)) return careful(game, rng, t);
-  const target =
-    (game.power < POWER_MAX * 0.5 ? nearest(game, CELL, 0, 8) : null) ?? nearest(game, FEE, 0, 3) ?? nearest(game, NONCE, 0, 14);
+  if (danger(game, x, y) || blocked(g.kindAt(x, y + 1))) return careful(game, rng, t);
+  const target = nearest(game, FEE, 0, 3) ?? nearest(game, NONCE, 0, 14);
   if (!target) return DOWN;
   const [tx, ty] = target;
   if (tx !== x && ty <= y + 1) {
     const dx = tx < x ? -1 : 1;
     // Never step under something already shaking: dig it out first, or wait.
     if (g.kindAt(x + dx, y) === EMPTY && danger(game, x + dx, y)) return 0;
+    if (blocked(g.kindAt(x + dx, y))) return DOWN;
     return side(dx);
   }
   if (ty > y) return DOWN;
@@ -96,62 +105,69 @@ const miner: Policy = (game, rng, t) => {
   return DOWN;
 };
 
+/** A person: the miner's choices, but decided only every `every` ticks and held meanwhile. */
+function human(every: number): Policy {
+  let last = 0;
+  return (game, rng, t) => {
+    if (t % every === 0) last = miner(game, rng, t);
+    return last;
+  };
+}
+
 const seeds = Number(process.argv[2] ?? 20);
 const minutes = Number(process.argv[3] ?? 5);
 const maxTicks = minutes * 60 * TICK_HZ;
 
+/** A run counts as stuck once the bot has gone this long without getting deeper. */
+const STUCK_TICKS = 60 * TICK_HZ;
+
 const rows = [];
-for (const [name, policy] of Object.entries({ down, random, careful, miner })) {
-  const totals = { seconds: 0, depth: 0, sats: 0, layer: 0, crush: 0, power: 0, pops: 0, combos: 0, maxCombo: 0, maxChain: 0, cells: 0, comboPower: 0, coins: 0, difficulty: 0, mined: 0, missed: 0 };
+const policies = { down, random, careful, miner, 'human .25s': human(15), 'novice .4s': human(24) };
+for (const [name, policy] of Object.entries(policies)) {
+  const totals = { seconds: 0, depth: 0, sats: 0, layer: 0, crush: 0, blast: 0, stuck: 0, maxChain: 0, coins: 0, mined: 0, missed: 0, pops: 0 };
   for (let s = 0; s < seeds; s++) {
     const game = new Game(new Mine({ seed: `balance:${s}`, layers: [] }));
     const rng = new Rng(`policy:${s}`);
     let t = 0;
+    let deepest = 0;
+    let deeperAt = 0;
     for (; t < maxTicks && !game.over; t++) {
       game.step(policy(game, rng, t));
       for (const e of game.events) {
         if (e.type === 'die') totals[e.cause]++;
-        else if (e.type === 'pop') {
-          totals.pops++;
-          if (e.combo >= 2) totals.combos++;
-          totals.comboPower += COMBO_POWER * e.bits.length * (e.combo - 1);
-        }
-        else if (e.type === 'cell') totals.cells++;
         else if (e.type === 'fee') totals.coins++;
+        else if (e.type === 'pop') totals.pops++;
+      }
+      if (game.bot.y > deepest) [deepest, deeperAt] = [game.bot.y, t];
+      else if (t - deeperAt > STUCK_TICKS) {
+        totals.stuck++;
+        break;
       }
     }
     totals.seconds += t / TICK_HZ;
     totals.depth += game.depth;
     totals.sats += game.sats;
     totals.layer += game.layer;
-    totals.maxCombo += game.maxCombo;
     totals.maxChain += game.maxChain;
     totals.mined += game.mined;
     totals.missed += game.missed;
-    totals.difficulty += game.difficulty / 1000;
   }
   const avg = (v: number) => Math.round((v / seeds) * 10) / 10;
   rows.push({
     policy: name,
-    'survived s': avg(totals.seconds),
+    'lasted s': avg(totals.seconds),
     'depth m': avg(totals.depth),
     'm/min': Math.round((totals.depth / totals.seconds) * 60),
-    layers: avg(totals.layer),
+    level: avg(totals.layer),
     mined: avg(totals.mined),
     missed: avg(totals.missed),
     sats: Math.round(totals.sats / seeds),
-    'crushes': avg(totals.crush),
-    'power outs': avg(totals.power),
-    'pops/min': Math.round((totals.pops / totals.seconds) * 60),
-    'combos/min': Math.round((totals.combos / totals.seconds) * 60),
-    'max combo': avg(totals.maxCombo),
+    crushes: avg(totals.crush),
+    blasts: avg(totals.blast),
+    'stuck %': Math.round((totals.stuck / seeds) * 100),
     'max chain': avg(totals.maxChain),
-    'cells': avg(totals.cells),
     'fee coins': avg(totals.coins),
-    /** Power from combos against power from cells. */
-    'combo:cells': Math.round((totals.comboPower / Math.max(1, totals.cells * CELL_POWER)) * 100) / 100,
-    'diff': avg(totals.difficulty),
   });
 }
-console.log(`${seeds} seeds, up to ${minutes} min each`);
+console.log(`${seeds} seeds, up to ${minutes} min each; a run is stuck after ${STUCK_TICKS / TICK_HZ} s without getting deeper`);
 console.table(rows);

@@ -2,7 +2,7 @@
  * Every tunable number in the game. Times are in ticks, 60 a second. A change
  * here changes what a run scores, so bump RULES_VERSION with it.
  */
-export const RULES_VERSION = 5;
+export const RULES_VERSION = 6;
 export const TICK_HZ = 60;
 
 // The shaft
@@ -36,19 +36,43 @@ export const TOPSOIL_COLORS = 3;
 /** Chance a block copies its left neighbour's colour, then its upper one's. */
 export const STICK_LEFT = 0.3;
 export const STICK_UP = 0.25;
-/** Hard rock, as a share of blocks: layer 1, the step per layer, the cap. */
-export const ROCK_BASE = 0.05;
-export const ROCK_STEP = 0.015;
-export const ROCK_MAX = 0.16;
-/** Chance a row holds a power cell. */
-export const CELL_CHANCE = 1 / 10;
-export const TOPSOIL_CELL_CHANCE = 1 / 8;
 /** Chance a row holds a transaction fee: about 8 a level, anywhere across it. */
 export const FEE_CHANCE = 0.2;
 export const TOPSOIL_FEE_CHANCE = 0.25;
 /** A block with this many reveals was contested: its layer gets more rock. */
 export const CONTESTED_REVEALS = 10;
 export const CONTESTED_ROCK = 0.03;
+
+// New blocks, level by level: each level from 2 to 5 brings one, then
+// every level has more of each, as the climb in Doodle Jump gets harder.
+/** Hard rock: takes a few hits. From ROCK_LEVEL, a share of blocks growing a step a level to a cap. */
+export const ROCK_LEVEL = 2;
+export const ROCK_BASE = 0.05;
+export const ROCK_STEP = 0.01;
+export const ROCK_MAX = 0.12;
+/** Steel: can't be dug. From STEEL_LEVEL, the chance a row holds a bar of it, 2 to 4 long. */
+export const STEEL_LEVEL = 3;
+export const STEEL_BASE = 0.12;
+export const STEEL_STEP = 0.03;
+export const STEEL_MAX = 0.3;
+export const STEEL_BAR_MIN = 2;
+export const STEEL_BAR_MAX = 4;
+/** Loose stone: falls the moment nothing holds it, without a wobble. A share of blocks. */
+export const STONE_LEVEL = 4;
+export const STONE_BASE = 0.03;
+export const STONE_STEP = 0.006;
+export const STONE_MAX = 0.07;
+/** Bomb: dug, it blasts the 3x3 around it once its fuse burns down. The chance a row holds one. */
+export const BOMB_LEVEL = 5;
+export const BOMB_BASE = 0.06;
+export const BOMB_STEP = 0.015;
+export const BOMB_MAX = 0.15;
+/** The fuse, in ticks: on the bombs' first level, shorter a level after, to a least. */
+export const FUSE_TICKS = 90;
+export const FUSE_STEP = 5;
+export const MIN_FUSE_TICKS = 60;
+/** A bomb caught in another's blast goes off this soon after. */
+export const CHAIN_FUSE_TICKS = 12;
 
 // The bot
 export const WALK_TICKS = 8;
@@ -71,30 +95,14 @@ export const POP_SIZE = 4;
 /** Hits a hard rock takes at difficulty 1. */
 export const ROCK_HITS = 3;
 
-// Power, in units the bot burns 1000 of a tick at difficulty 1
-/** A full battery lasts this long at difficulty 1. */
-export const POWER_SECONDS = 30;
-export const POWER_MAX = POWER_SECONDS * TICK_HZ * 1000;
-export const CELL_POWER = POWER_MAX / 4;
-/** The least a power cell gives, however many halvings. */
-export const MIN_CELL_POWER = POWER_MAX / 25;
-/** A hit on hard rock: a little power, as rock mostly costs time. */
-export const ROCK_HIT_POWER = POWER_MAX / 100;
-/** Fee per block popped in a combo, times the levels above the first. */
-export const COMBO_POWER = POWER_MAX / 100;
-
-// Difficulty, in thousandths
+// Difficulty, in thousandths: it rises a step every level, to a cap.
+// Loose blocks wobble shorter, and hard rock takes more hits.
 export const D_ONE = 1000;
-export const D_MIN = 500;
-export const D_MAX = 4000;
-/** The adjustment aims every layer at this time... */
-export const LAYER_TARGET_TICKS = 20 * TICK_HZ;
-/** ...moving difficulty by at most these factors at once. */
-export const RETARGET_MIN = 750;
-export const RETARGET_MAX = 1333;
+export const D_STEP = 125;
+export const D_MAX = 3000;
 
 // The halving
-/** Layers between halvings of the power cells and the nonce reward. */
+/** Layers between halvings of the nonce reward. */
 export const HALVING_LAYERS = 4;
 
 // Score, in sats

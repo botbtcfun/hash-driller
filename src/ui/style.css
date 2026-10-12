@@ -1,5 +1,5 @@
 /* The botBTC arcade: Base blue on navy, Press Start 2P for labels, VT323 for
-   reading. Coin yellow is for sats and power. */
+   reading. Coin yellow is for sats and the golden #. */
 :root {
   --bg: #00081c;
   --panel: #031a52;
@@ -144,20 +144,6 @@ body {
   border: 2px solid var(--line);
 }
 
-#power,
-#s-power {
-  display: block;
-  height: 100%;
-  width: 100%;
-  background: var(--coin);
-}
-
-#power.low,
-#s-power.low {
-  background: var(--lose);
-  animation: blink 0.4s steps(2) infinite;
-}
-
 .keys {
   margin: auto 0 0;
   font-size: 18px;
@@ -211,6 +197,17 @@ body {
   border-color: var(--lose);
 }
 
+/* A new kind of block, with its picture. */
+#banner .toast.new {
+  animation-duration: 6s;
+  border-color: var(--coin);
+}
+
+#banner .toast .sprite {
+  height: 24px;
+  vertical-align: -8px;
+}
+
 #banner .toast b {
   color: var(--coin);
   font-weight: normal;
@@ -262,7 +259,7 @@ body {
   font-weight: normal;
 }
 
-/* A game sprite in the text, such as the power cell or the golden #. */
+/* A game sprite in the text, such as a fee coin or the golden #. */
 .sprite {
   width: auto;
   height: 1.2em;
@@ -610,7 +607,7 @@ body.touch .loading {
   max-height: none;
 }
 
-/* The strip: sats, fees, level, chain, lives and power, over the top. */
+/* The strip: sats, fees, level, chain and lives, over the top. */
 body.touch .strip {
   display: block;
   position: absolute;
@@ -636,7 +633,6 @@ body.touch.portrait.ios-app .strip {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 6px;
 }
 
 .strip p {
@@ -673,10 +669,6 @@ body.touch.portrait.ios-app .strip {
   margin-left: 4px;
   background: var(--base-hi);
   box-shadow: inset -3px -3px 0 var(--base-lo);
-}
-
-.strip .bar {
-  height: 8px;
 }
 
 /* The controls float over the screen, each placed by touch.ts: the d-pad

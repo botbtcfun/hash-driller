@@ -3,7 +3,7 @@ import { headerY } from './layers';
 
 /**
  * The tutorial's mine, made by hand so every lesson is where the coach says:
- * three blocks to dig down through, a cell to the right, a fee to the left
+ * three blocks to dig down through, a fee to the right, another to the left
  * with a block over it that comes loose, a column down through the LEVEL 1
  * line, and level 1's golden # two blocks right of where it comes out. Every
  * block on the way stands alone, so digging it takes nothing else with it.
@@ -17,7 +17,7 @@ export const TUTORIAL_ROWS = [
   '.........',
   '111102222',
   '112132222',
-  '11$303+22',
+  '11$303$22',
   '110112222',
   '113112222',
   '110112222',
@@ -28,21 +28,21 @@ export const TUTORIAL_ROWS = [
   '111112222',
   '300112233',
   '301122303',
-  '221+30011',
+  '221330011',
   '2213$0012',
   '330011220',
   '301122003',
   '112230032',
 ];
 
-/** The row of the cell and the fee: the dig lesson ends on reaching it. */
-const ITEM_ROW = TUTORIAL_ROWS.findIndex((r) => r.includes('+'));
+/** The row of the two fees: the dig lesson ends on reaching it. */
+const ITEM_ROW = TUTORIAL_ROWS.findIndex((r) => r.includes('$'));
 
 /** What the coach is teaching, in order, then the level mined and the tutorial done. */
-export type Lesson = 'dig' | 'cell' | 'fee' | 'loose' | 'level' | 'nonce' | 'mined' | 'done';
+export type Lesson = 'dig' | 'coin' | 'fee' | 'loose' | 'level' | 'nonce' | 'mined' | 'done';
 
 /** The lessons that count as steps, for "2/6". */
-export const LESSONS: Lesson[] = ['dig', 'cell', 'fee', 'loose', 'level', 'nonce'];
+export const LESSONS: Lesson[] = ['dig', 'coin', 'fee', 'loose', 'level', 'nonce'];
 
 const ANY = LEFT | RIGHT | UP | DOWN;
 
@@ -50,7 +50,7 @@ const ANY = LEFT | RIGHT | UP | DOWN;
  * The keys each lesson lets through: just the one it's about, so the bot
  * can't wander off the lesson, or below the # with no way back up.
  */
-const ALLOWED: Record<Lesson, number> = { dig: DOWN, cell: RIGHT, fee: LEFT, loose: UP, level: DOWN, nonce: RIGHT, mined: ANY, done: 0 };
+const ALLOWED: Record<Lesson, number> = { dig: DOWN, coin: RIGHT, fee: LEFT, loose: UP, level: DOWN, nonce: RIGHT, mined: ANY, done: 0 };
 
 /** How long the mined level is celebrated before the tutorial's last screen. */
 const MINED_TICKS = 90;
@@ -106,11 +106,11 @@ export class Tutorial {
     const saw = (type: string) => game.events.some((e) => e.type === type);
     switch (this.lesson) {
       case 'dig':
-        return game.bot.y >= ITEM_ROW ? 'cell' : null;
-      case 'cell':
-        return saw('cell') ? 'fee' : null;
+        return game.bot.y >= ITEM_ROW ? 'coin' : null;
+      case 'coin':
+        return saw('fee') ? 'fee' : null;
       case 'fee':
-        // Taking the fee leaves the block over it hanging: the next lesson.
+        // Taking the second fee leaves the block over it hanging: the next lesson.
         return saw('fee') ? (saw('wobble') ? 'loose' : 'level') : null;
       case 'loose':
         return [...game.bodies.values()].some((b) => b.state === WOBBLE || b.state === FALL) ? null : 'level';

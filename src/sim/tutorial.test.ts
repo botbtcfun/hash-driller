@@ -4,7 +4,7 @@ import { DOWN, Game, LEFT, RIGHT, UP } from './game';
 import { Mine } from './layers';
 import { type Lesson, TUTORIAL_ROWS, Tutorial } from './tutorial';
 
-const KEY: Partial<Record<Lesson, number>> = { dig: DOWN, cell: RIGHT, fee: LEFT, loose: UP, level: DOWN, nonce: RIGHT };
+const KEY: Partial<Record<Lesson, number>> = { dig: DOWN, coin: RIGHT, fee: LEFT, loose: UP, level: DOWN, nonce: RIGHT };
 
 const tutorialGame = () => new Game(new Mine({ seed: 'tutorial', layers: [], rows: TUTORIAL_ROWS }));
 
@@ -26,7 +26,7 @@ function play(): { game: Game; tutorial: Tutorial; seen: Lesson[] } {
 describe('tutorial', () => {
   it('teaches every lesson in order, and a player who follows it mines level 1 unharmed', () => {
     const { game, seen } = play();
-    expect(seen).toEqual(['dig', 'cell', 'fee', 'loose', 'level', 'nonce', 'mined', 'done']);
+    expect(seen).toEqual(['dig', 'coin', 'fee', 'loose', 'level', 'nonce', 'mined', 'done']);
     expect(game.mined).toBe(1);
     expect(game.lives).toBe(3);
   });
@@ -77,7 +77,7 @@ describe('tutorial', () => {
       const { bot } = game;
       if (tutorial.waiting) stops.push(`${tutorial.lesson}:${bot.action}:${bot.x === bot.fromX && bot.y === bot.fromY}`);
     }
-    expect(stops).toEqual(['cell:idle:true', 'fee:idle:true', 'loose:idle:true', 'level:idle:true', 'nonce:idle:true']);
+    expect(stops).toEqual(['coin:idle:true', 'fee:idle:true', 'loose:idle:true', 'level:idle:true', 'nonce:idle:true']);
   });
 
   it('keeps going into a lesson already pressing its key', () => {
@@ -93,7 +93,7 @@ describe('tutorial', () => {
       game.step((DOWN | RIGHT) & tutorial.allowed);
       tutorial.tick(game, (DOWN | RIGHT) & tutorial.allowed);
     }
-    expect(tutorial.lesson).toBe('cell');
+    expect(tutorial.lesson).toBe('coin');
     expect(tutorial.waiting).toBe(false);
   });
 

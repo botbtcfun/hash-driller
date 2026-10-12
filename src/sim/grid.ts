@@ -4,7 +4,8 @@ import { WIDTH, WINDOW_ROWS } from './rules';
 export const EMPTY = 0;
 export const COLOR = 1;
 export const ROCK = 2;
-export const CELL = 3;
+/** Can't be dug: go around it. */
+export const STEEL = 3;
 export const HEADER = 4;
 /** A layer's golden nonce. Its colour byte holds the layer it belongs to. */
 export const NONCE = 5;
@@ -14,9 +15,13 @@ export const GROUND = 6;
 export const WALL = 7;
 /** A transaction fee, paid out with the next nonce mined. */
 export const FEE = 8;
+/** Falls the moment nothing holds it, without a wobble first. */
+export const STONE = 9;
+/** Dug, it lights; its hits count down the fuse, then it blasts the 3x3 around it. */
+export const BOMB = 10;
 
 /** Things the bot picks up by drilling or walking into them. */
-export const isItem = (kind: number): boolean => kind === CELL || kind === NONCE || kind === FEE;
+export const isItem = (kind: number): boolean => kind === NONCE || kind === FEE;
 
 /** A row as generated: a kind and a colour per column. */
 export interface Row {
@@ -25,9 +30,9 @@ export interface Row {
 }
 
 /**
- * A row drawn as text: '.' is empty, 0-3 a colour, '#' hard rock, '+' a
- * power cell, '$' a fee, 'N' a nonce of layer `layer` and '=' a header tile.
- * Anything else, such as the bot's '@', is empty.
+ * A row drawn as text: '.' is empty, 0-3 a colour, '#' hard rock, 'S' steel,
+ * 'L' a loose stone, 'B' a bomb, '$' a fee, 'N' a nonce of layer `layer` and
+ * '=' a header tile. Anything else, such as the bot's '@', is empty.
  */
 export function parseRow(line: string, layer = 0): Row {
   const kind = new Uint8Array(WIDTH);
@@ -38,7 +43,9 @@ export function parseRow(line: string, layer = 0): Row {
       kind[x] = COLOR;
       color[x] = Number(ch);
     } else if (ch === '#') kind[x] = ROCK;
-    else if (ch === '+') kind[x] = CELL;
+    else if (ch === 'S') kind[x] = STEEL;
+    else if (ch === 'L') kind[x] = STONE;
+    else if (ch === 'B') kind[x] = BOMB;
     else if (ch === '$') kind[x] = FEE;
     else if (ch === '=') kind[x] = HEADER;
     else if (ch === 'N') {
