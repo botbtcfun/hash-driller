@@ -7,7 +7,7 @@ import Phaser from 'phaser';
 import { Sound } from './audio/sound';
 import { Input } from './render/input';
 import { MIN_VIEW_ROWS, PlayScene, type Session } from './render/scene';
-import { BG, TILE } from './render/sprites';
+import { BG, TILE, icon } from './render/sprites';
 import { Game, type GameEvent } from './sim/game';
 import { Mine } from './sim/layers';
 import { InputLog } from './sim/replay';
@@ -146,9 +146,9 @@ class Run implements Session {
   private graduate(): void {
     learn();
     hud.overlay(`<h2>READY TO DIG!</h2>
-<p class="how">That's the game: dig down level by level,<br>and mine each level's golden <b>#</b>.</p>
-<p class="how">Mine levels in a row to grow your chain:<br>each pays more. Pass a <b>LEVEL</b> line<br>without its <b>#</b> and the chain breaks.</p>
-<p class="how">Deeper down the <b>#</b> hides further from<br>the line: the arrow points to it.<br>And a loose block? You can also step aside.</p>
+<p class="how">That's the game: dig down level by level,<br>and mine each level's golden ${icon('nonce', '#')}.</p>
+<p class="how">Mine levels in a row to grow your chain:<br>each pays more. Pass a <b>LEVEL</b> line<br>without its ${icon('nonce', '#')} and the chain breaks.</p>
+<p class="how">Deeper down the ${icon('nonce', '#')} hides further from<br>the line: the arrow points to it.<br>And a loose block? You can also step aside.</p>
 <p class="how dim">From here on, it's full speed.<br>One new mine a day, the same for everyone.</p>
 <p class="blink">${tap()} TO PLAY TODAY'S MINE</p>`);
   }
@@ -408,8 +408,8 @@ function intro(): void {
   // The first time, the tutorial explains as you play.
   if (!learnt()) {
     hud.overlay(`<h2>HASH DRILLER</h2>
-<p class="how">Dig down level by level,<br>and mine each level's golden <b>#</b>.</p>
-<p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
+<p class="how">Dig down level by level,<br>and mine each level's golden ${icon('nonce', '#')}.</p>
+<p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
 <p class="blink">${tap()} TO START</p>
 <p class="how dim">A short, slow tutorial comes first.</p>`);
     return;
@@ -418,22 +418,22 @@ function intro(): void {
   if (isTouch()) {
     // A phone gets the short version: the shaft says the rest as you play.
     hud.overlay(`<h2>HASH DRILLER</h2>
-<p class="how">Dig down. Every level has one golden <b>#</b>:<br>touch it to mine the level.</p>
-<p class="how">Orange coins are fees: the <b>#</b> pays them out.<br>Mine levels in a row to grow your chain.</p>
-<p class="how">Power drains: grab <b>⚡</b>. A red <b>!</b> means<br>something above you is about to fall.</p>
+<p class="how">Dig down. Every level has one golden ${icon('nonce', '#')}:<br>touch it to mine the level.</p>
+<p class="how">Orange coins ${icon('fee', '')} are fees: the ${icon('nonce', '#')} pays them out.<br>Mine levels in a row to grow your chain.</p>
+<p class="how">Power drains: grab ${icon('cell', 'power')}. A red <b>!</b> means<br>something above you is about to fall.</p>
 <p class="how">D-pad: move and dig. There's no way back up.<br>Hold its centre to drag it where you like.</p>
-<p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
+<p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
 <p class="blink">TAP TO START</p>${more}`);
     return;
   }
   const controls = '← → ↓ ↑ move and dig. There\'s no way back up.';
   hud.overlay(`<h2>HASH DRILLER</h2>
-<p class="how">Dig down level by level. Every level has<br>one golden <b>#</b>: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
-<p class="how">Grab the orange coins: they're fees,<br>and the <b>#</b> pays them out with the level.</p>
-<p class="how">Mine every level to grow your chain:<br>each pays more. Pass the next <b>LEVEL</b> line<br>without its <b>#</b> and the chain breaks,<br>and its fees are lost.</p>
-<p class="how">Power drains: grab <b>⚡</b> cells.<br>Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or dig it away with ↑ just in time.</p>
+<p class="how">Dig down level by level. Every level has<br>one golden ${icon('nonce', '#')}: touch it to mine the level.<br>That's the goal. No need to dig the rest.</p>
+<p class="how">Grab the orange coins ${icon('fee', '')}: they're fees,<br>and the ${icon('nonce', '#')} pays them out with the level.</p>
+<p class="how">Mine every level to grow your chain:<br>each pays more. Pass the next <b>LEVEL</b> line<br>without its ${icon('nonce', '#')} and the chain breaks,<br>and its fees are lost.</p>
+<p class="how">Power drains: grab ${icon('cell', 'power')} cells.<br>Dig out from under something and it falls:<br>a red <b>!</b> over you means step aside,<br>or dig it away with ↑ just in time.</p>
 <p class="how">${controls}</p>
-<p class="how dim">Each level is a real botBTC block,<br>and its <b>#</b> is the block's nonce.</p>
+<p class="how dim">Each level is a real botBTC block,<br>and its ${icon('nonce', '#')} is the block's nonce.</p>
 <p class="blink">PRESS ANY KEY</p>${more}`);
 }
 intro();

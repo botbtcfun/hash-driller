@@ -1,23 +1,27 @@
+import { icon } from '../render/sprites';
 import { LESSONS, type Lesson } from '../sim/tutorial';
 import { isTouch } from './hud';
 
-/** What the coach says in each lesson. */
+/** What the coach says in each lesson, with the things to look for drawn as in the game. */
 function say(lesson: Lesson): string {
+  const cell = icon('cell', 'power cell');
+  const fee = icon('fee', 'fee coin');
+  const nonce = icon('nonce', 'golden #');
   switch (lesson) {
     case 'dig':
       return isTouch() ? '<kbd>↓</kbd> on the d-pad digs down.<br>Dig through the blocks under you.' : '<kbd>↓</kbd> digs down.<br>Dig through the blocks under you.';
     case 'cell':
-      return 'Your power drains as you go.<br><kbd>→</kbd> digs sideways: get the <b>⚡</b> cell.';
+      return `Your power bar drains as you go.<br><kbd>→</kbd> digs sideways: grab the ${cell}!`;
     case 'fee':
-      return 'Orange coins are fees: the <b>#</b> pays them out.<br>Go <kbd>←</kbd> and grab the coin.';
+      return `A ${fee} is a fee: the ${nonce} pays it out.<br>Go <kbd>←</kbd> and grab it.`;
     case 'loose':
       return '<em>LOOK OUT!</em> A red <em>!</em> means the block<br>above you came loose. Dig it with <kbd>↑</kbd>!';
     case 'level':
       return 'Phew. Now <kbd>↓</kbd> dig down,<br>through the <b>LEVEL 1</b> line.';
     case 'nonce':
-      return "There's level 1's golden <b>#</b>. Every level has one:<br>touch it to mine the level. Go <kbd>→</kbd>!";
+      return `Every level has one ${nonce}: its goal.<br>Touch it to mine it. Go <kbd>→</kbd>!`;
     default:
-      return 'Mined! The <b>#</b> paid the level<br>and the fee you picked up.';
+      return `Mined! The ${nonce} paid the level<br>and the fee you picked up.`;
   }
 }
 

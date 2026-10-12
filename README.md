@@ -5,8 +5,8 @@ A pixel-art digging game. Dig down level by level: every level has one golden
 coins: they're transaction fees, and the # pays them out with the level's
 subsidy, which halves as you go deeper while fees grow. Mine level after level
 to grow your chain, and each one pays more; pass the next LEVEL line without
-its # and the chain breaks and its fees are lost. Power drains, so grab ⚡
-cells, and anything you dig out from under falls.
+its # and the chain breaks and its fees are lost. Power drains, so grab
+the yellow power cells, and anything you dig out from under falls.
 
 Each level is a real [botBTC](https://botbtc.fun) block, and its # is the
 block's nonce. Made for Round 01 (games) of

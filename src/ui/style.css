@@ -262,6 +262,14 @@ body {
   font-weight: normal;
 }
 
+/* A game sprite in the text, such as the power cell or the golden #. */
+.sprite {
+  width: auto;
+  height: 1.2em;
+  vertical-align: -0.25em;
+  image-rendering: pixelated;
+}
+
 /* Buttons on a screen: how to play, add to home screen. */
 #overlay button,
 .sheet button {

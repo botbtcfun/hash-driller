@@ -110,6 +110,94 @@ function block(ctx: Ctx, color: number, mask: number): void {
   grid(ctx, SYMBOLS[color]!, { '#': lo }, 6, 6);
 }
 
+/** A power cell, with its light lit on frame 1. */
+function cell(ctx: Ctx, frame: number): void {
+  const glow = frame ? '#fff3a8' : '#ffd60a';
+  grid(
+    ctx,
+    [
+      '................',
+      '......####......',
+      '.....######.....',
+      '....oyyyyyyo....',
+      '....oyGGyyyo....',
+      '....oyGyyyyo....',
+      '....oyyyyyyo....',
+      '....oyyyyyyo....',
+      '....oyy##yyo....',
+      '....oy####yo....',
+      '....oyy##yyo....',
+      '....oyyyyyyo....',
+      '....oyyyyyyo....',
+      '....oyyyyyyo....',
+      '....oooooooo....',
+      '................',
+    ],
+    { '#': '#7a6300', o: '#7a6300', y: '#ffd60a', G: glow },
+  );
+}
+
+/** The nonce: gold with a hash sign, and on frames 1-3 a glint that sweeps across it. */
+function nonce(ctx: Ctx, frame: number): void {
+  ctx.fillStyle = OUTLINE;
+  ctx.fillRect(0, 0, TILE, TILE);
+  ctx.fillStyle = '#ffd60a';
+  ctx.fillRect(1, 1, TILE - 2, TILE - 2);
+  ctx.fillStyle = '#fff3a8';
+  ctx.fillRect(1, 1, TILE - 2, 1);
+  ctx.fillRect(1, 1, 1, TILE - 2);
+  ctx.fillStyle = '#b88a00';
+  ctx.fillRect(1, TILE - 2, TILE - 2, 1);
+  ctx.fillRect(TILE - 2, 1, 1, TILE - 2);
+  grid(ctx, HASH, { '#': '#b88a00' }, 5, 5);
+  if (frame) {
+    ctx.fillStyle = '#ffffff';
+    const x0 = frame * 4 - 2;
+    for (let i = 0; i < 12; i++) {
+      const x = x0 + i;
+      const y = 13 - i;
+      if (x >= 2 && x < TILE - 2 && y >= 2 && y < TILE - 2) ctx.fillRect(x, y, 2, 1);
+    }
+  }
+}
+
+/** A fee: a Bitcoin-orange coin with a white ₿, glinting on frame 1. */
+function fee(ctx: Ctx, frame: number): void {
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      const d = Math.hypot(x + 0.5 - 8, y + 0.5 - 8);
+      if (d > 6.6) continue;
+      ctx.fillStyle = d > 5.6 ? '#5c2d00' : x + y < 11 ? '#ffc46b' : x + y > 19 ? '#b86a0e' : '#f7931a';
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+  grid(ctx, COIN_GLYPH, { '#': '#ffffff' }, 6, 5);
+  if (frame) {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(4, 5, 1, 2);
+    ctx.fillRect(5, 4, 2, 1);
+  }
+}
+
+const ICONS = { cell, fee, nonce };
+const iconUrls = new Map<string, string>();
+
+/**
+ * A sprite as an image for text, drawn as the game draws it, so the words
+ * show the very thing to look for.
+ */
+export function icon(name: keyof typeof ICONS, alt: string): string {
+  let url = iconUrls.get(name);
+  if (!url) {
+    const c = document.createElement('canvas');
+    c.width = c.height = TILE;
+    ICONS[name](c.getContext('2d')!, 0);
+    url = c.toDataURL();
+    iconUrls.set(name, url);
+  }
+  return `<img class="sprite" src="${url}" alt="${alt}" />`;
+}
+
 export function makeTextures(scene: Phaser.Scene): void {
   for (let c = 0; c < BLOCK_COLORS.length; c++) {
     for (let mask = 0; mask < 16; mask++) canvas(scene, `block${c}_${mask}`, TILE, TILE, (ctx) => block(ctx, c, mask));
@@ -134,33 +222,7 @@ export function makeTextures(scene: Phaser.Scene): void {
     });
   }
 
-  for (const frame of [0, 1]) {
-    canvas(scene, `cell${frame}`, TILE, TILE, (ctx) => {
-      const glow = frame ? '#fff3a8' : '#ffd60a';
-      grid(
-        ctx,
-        [
-          '................',
-          '......####......',
-          '.....######.....',
-          '....oyyyyyyo....',
-          '....oyGGyyyo....',
-          '....oyGyyyyo....',
-          '....oyyyyyyo....',
-          '....oyyyyyyo....',
-          '....oyy##yyo....',
-          '....oy####yo....',
-          '....oyy##yyo....',
-          '....oyyyyyyo....',
-          '....oyyyyyyo....',
-          '....oyyyyyyo....',
-          '....oooooooo....',
-          '................',
-        ],
-        { '#': '#7a6300', o: '#7a6300', y: '#ffd60a', G: glow },
-      );
-    });
-  }
+  for (const frame of [0, 1]) canvas(scene, `cell${frame}`, TILE, TILE, (ctx) => cell(ctx, frame));
 
   canvas(scene, 'header', TILE, TILE, (ctx) => {
     ctx.fillStyle = OUTLINE;
@@ -173,49 +235,8 @@ export function makeTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, TILE - 3, TILE, 1);
   });
 
-  // The nonce: gold with a hash sign, and a glint that sweeps across it.
-  for (const frame of [0, 1, 2, 3]) {
-    canvas(scene, `nonce${frame}`, TILE, TILE, (ctx) => {
-      ctx.fillStyle = OUTLINE;
-      ctx.fillRect(0, 0, TILE, TILE);
-      ctx.fillStyle = '#ffd60a';
-      ctx.fillRect(1, 1, TILE - 2, TILE - 2);
-      ctx.fillStyle = '#fff3a8';
-      ctx.fillRect(1, 1, TILE - 2, 1);
-      ctx.fillRect(1, 1, 1, TILE - 2);
-      ctx.fillStyle = '#b88a00';
-      ctx.fillRect(1, TILE - 2, TILE - 2, 1);
-      ctx.fillRect(TILE - 2, 1, 1, TILE - 2);
-      grid(ctx, HASH, { '#': '#b88a00' }, 5, 5);
-      if (frame) {
-        ctx.fillStyle = '#ffffff';
-        const x0 = frame * 4 - 2;
-        for (let i = 0; i < 12; i++) {
-          const x = x0 + i;
-          const y = 13 - i;
-          if (x >= 2 && x < TILE - 2 && y >= 2 && y < TILE - 2) ctx.fillRect(x, y, 2, 1);
-        }
-      }
-    });
-  }
-  for (const frame of [0, 1]) {
-    canvas(scene, `fee${frame}`, TILE, TILE, (ctx) => {
-      for (let y = 0; y < TILE; y++) {
-        for (let x = 0; x < TILE; x++) {
-          const d = Math.hypot(x + 0.5 - 8, y + 0.5 - 8);
-          if (d > 6.6) continue;
-          ctx.fillStyle = d > 5.6 ? '#5c2d00' : x + y < 11 ? '#ffc46b' : x + y > 19 ? '#b86a0e' : '#f7931a';
-          ctx.fillRect(x, y, 1, 1);
-        }
-      }
-      grid(ctx, COIN_GLYPH, { '#': '#ffffff' }, 6, 5);
-      if (frame) {
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(4, 5, 1, 2);
-        ctx.fillRect(5, 4, 2, 1);
-      }
-    });
-  }
+  for (const frame of [0, 1, 2, 3]) canvas(scene, `nonce${frame}`, TILE, TILE, (ctx) => nonce(ctx, frame));
+  for (const frame of [0, 1]) canvas(scene, `fee${frame}`, TILE, TILE, (ctx) => fee(ctx, frame));
   canvas(scene, 'arrow', 7, 4, (ctx) => grid(ctx, ARROW, { '#': '#ffd60a' }));
   canvas(scene, 'warn', 5, 9, (ctx) => grid(ctx, WARN, { '#': '#ff4d79' }));
   canvas(scene, 'star', 7, 7, (ctx) => grid(ctx, STAR, { '#': '#ffe066', W: '#ffffff' }));
