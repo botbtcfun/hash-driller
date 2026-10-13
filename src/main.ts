@@ -18,6 +18,7 @@ import { Coach } from './ui/coach';
 import { Hud, isTouch } from './ui/hud';
 import { Install } from './ui/install';
 import { type Room, TouchControls } from './ui/touch';
+import { Updater } from './ui/update';
 
 const WIDTH_PX = WIDTH * TILE;
 const MIN_HEIGHT_PX = MIN_VIEW_ROWS * TILE;
@@ -88,8 +89,9 @@ class Run implements Session {
     this.begin(!learnt());
   }
 
-  /** Starts the tutorial, or today's mine. */
+  /** Starts the tutorial, or today's mine: in the newest version, if one has come out. */
   begin(tutorial: boolean): void {
+    if (updater.apply()) return;
     this.started = true;
     this.tutorial = tutorial ? new Tutorial() : null;
     this.game = new Game(new Mine(tutorial ? { seed: 'tutorial', layers: [], rows: TUTORIAL_ROWS } : { seed: `day:${day}`, layers: [] }));
@@ -120,6 +122,8 @@ class Run implements Session {
     hud.events(events, this.game);
     sound.events(events);
     if (!this.game.over) return;
+    // A good moment to look for a new version, for the next run.
+    void updater.check();
     if (this.tutorial) hud.overlay(`<h2>OUT OF LIVES</h2><p>${tap()} TO TRY AGAIN</p><p><button type="button" data-act="skip">SKIP THE TUTORIAL</button></p>`);
     else {
       hud.gameOver(this.game, initialsForm() + install.button());
@@ -165,6 +169,8 @@ class Run implements Session {
 }
 
 const run = new Run();
+// Before the first run, a new version can load at once.
+const updater = new Updater(() => !run.started);
 const scene = new PlayScene(run, keys);
 const coach = new Coach(() => run.skip());
 const controls = new TouchControls(keys, () => run.togglePause(), insets);
