@@ -37,6 +37,8 @@ export const TUTORIAL_ROWS = [
 
 /** The row of the two fees: the dig lesson ends on reaching it. */
 const ITEM_ROW = TUTORIAL_ROWS.findIndex((r) => r.includes('$'));
+/** The row of level 1's nonce. */
+const NONCE_ROW = TUTORIAL_ROWS.findIndex((r) => r.includes('N'));
 
 /** What the coach is teaching, in order, then the level mined and the tutorial done. */
 export type Lesson = 'dig' | 'coin' | 'fee' | 'loose' | 'level' | 'nonce' | 'mined' | 'done';
@@ -88,6 +90,8 @@ export class Tutorial {
     const next = this.next(game);
     if (next) {
       this.lesson = next;
+      // A tap kept from the last lesson must not play out in this one, with a key it doesn't allow.
+      game.forget();
       // Only the celebration of the mined level runs on by itself, and the last screen covers the mine.
       this.settling = next !== 'mined' && next !== 'done';
       this.waiting = next === 'done';
@@ -104,6 +108,10 @@ export class Tutorial {
 
   private next(game: Game): Lesson | null {
     const saw = (type: string) => game.events.some((e) => e.type === type);
+    // Below a lesson's row with no way back up, somehow: on to what is still ahead, never stuck.
+    const below = game.bot.action !== 'dead' && game.bot.y > ITEM_ROW;
+    if (below && (this.lesson === 'coin' || this.lesson === 'fee' || this.lesson === 'loose')) return 'level';
+    if (this.lesson === 'nonce' && game.bot.y > NONCE_ROW) return 'done';
     switch (this.lesson) {
       case 'dig':
         return game.bot.y >= ITEM_ROW ? 'coin' : null;

@@ -97,6 +97,39 @@ describe('tutorial', () => {
     expect(tutorial.waiting).toBe(false);
   });
 
+  it("keeps to each lesson when the last one's key is mashed through the change", () => {
+    const game = tutorialGame();
+    const tutorial = new Tutorial();
+    tutorial.press(DOWN);
+    // ↓ tapped as fast as can be, through the dig lesson and well past its end.
+    for (let t = 0; t < 300; t++) {
+      const key = t % 2 === 0 ? DOWN : 0;
+      tutorial.press(key);
+      if (tutorial.waiting) continue;
+      game.step(key & tutorial.allowed);
+      tutorial.tick(game, key & tutorial.allowed);
+    }
+    expect(tutorial.lesson).toBe('coin');
+    expect(game.bot.y).toBe(6);
+  });
+
+  it('moves on, rather than getting stuck, if the bot ends up below a lesson anyway', () => {
+    const game = tutorialGame();
+    const tutorial = new Tutorial();
+    while (tutorial.lesson === 'dig') {
+      tutorial.press(DOWN);
+      game.step(DOWN & tutorial.allowed);
+      tutorial.tick(game, DOWN & tutorial.allowed);
+    }
+    // Past the rails: the bot digs on down, under the coins it can no longer reach.
+    for (let t = 0; t < 120; t++) {
+      game.step(DOWN);
+      tutorial.tick(game, DOWN);
+    }
+    expect(game.bot.y).toBeGreaterThan(6);
+    expect(['level', 'nonce', 'done']).toContain(tutorial.lesson);
+  });
+
   it('generates the rows after its own as the plain mine would', () => {
     const made = new Mine({ seed: 'tutorial', layers: [], rows: TUTORIAL_ROWS });
     const plain = new Mine({ seed: 'tutorial', layers: [] });

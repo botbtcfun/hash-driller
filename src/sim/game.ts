@@ -378,6 +378,12 @@ export class Game {
     return false;
   }
 
+  /** Drops a press kept from while the bot was busy: the controls changed under it, as between the tutorial's lessons. */
+  forget(): void {
+    this.buffer = 0;
+    this.bufferAge = R.BUFFER_TICKS;
+  }
+
   /**
    * Keeps a fresh press made while the bot is busy, so a quick tap is not
    * lost. Only fresh ones: a key still held from the press that started the
