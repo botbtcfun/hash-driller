@@ -308,7 +308,7 @@ export class Game {
 
     // Braced: hit what's coming the moment it's right above. Moving or digging down lets go.
     if (this.braced) {
-      if (input & (DOWN | LEFT | RIGHT) || !this.coming(bot.x, bot.y)) this.braced = false;
+      if (input & (DOWN | LEFT | RIGHT) || this.threat() === null) this.braced = false;
       else {
         if (this.moving(bot.x, bot.y - 1)) {
           this.braced = false;
@@ -325,7 +325,7 @@ export class Game {
       // else a fresh ↑ jumps.
       if (this.moving(bot.x, bot.y - 1)) {
         if (up & UP) this.drill('up');
-      } else if (this.free(bot.x, bot.y - 1) && this.coming(bot.x, bot.y)) this.braced = true;
+      } else if (this.free(bot.x, bot.y - 1) && this.threat() !== null) this.braced = true;
       else if (up & UP && this.canHop()) this.hop();
       else this.drill('up');
     } else if (lr !== 0) this.walk(lr);
@@ -342,7 +342,7 @@ export class Game {
   /** Never more than a row above the deepest point: a jump is a step up, never a way back up. */
   private canHop(): boolean {
     const { x, y } = this.bot;
-    return y >= this.deepest && this.free(x, y - 1) && !this.coming(x, y);
+    return y >= this.deepest && this.free(x, y - 1) && this.threat() === null;
   }
 
   private hop(): void {
@@ -367,15 +367,45 @@ export class Game {
     return true;
   }
 
-  /** Something loose or falling above (x, y), before the first block at rest. */
-  private coming(x: number, y: number): boolean {
+  /**
+   * The row of a piece coming down on the bot, or null: the first piece
+   * wobbling or falling above it, with only air between, that will drop as
+   * far as the bot rather than land on something first. A wide piece often
+   * lands on a block beside the bot's column, out of sight up there. A coin
+   * or a nonce is no threat: the bot catches it.
+   */
+  threat(): number | null {
+    const { x, y } = this.bot;
     const g = this.grid;
     for (let yy = y - 1; yy >= g.top; yy--) {
-      const body = this.bodies.get(g.bodyAt(x, yy));
-      if (body && body.state !== POP) return true;
-      if (!body && g.kindAt(x, yy) !== EMPTY) return false;
+      const id = g.bodyAt(x, yy);
+      const body = this.bodies.get(id);
+      if (!body) {
+        if (g.kindAt(x, yy) !== EMPTY) return null;
+        continue;
+      }
+      if (body.state === POP || isItem(g.kindAt(x, yy))) return null;
+      return this.drop(id) >= y - yy ? yy : null;
     }
-    return false;
+    return null;
+  }
+
+  /** How many rows a moving piece can fall before it lands on something, the bot not counting. */
+  private drop(id: number): number {
+    const g = this.grid;
+    let drop = Infinity;
+    for (let cy = g.top; cy < g.bottom; cy++) {
+      for (let cx = 0; cx < W; cx++) {
+        if (g.bodyAt(cx, cy) !== id) continue;
+        let d = 0;
+        for (let ny = cy + 1; d < drop; ny++, d++) {
+          const k = g.kindAt(cx, ny);
+          if (k === GROUND || (k !== EMPTY && g.bodyAt(cx, ny) !== id)) break;
+        }
+        drop = Math.min(drop, d);
+      }
+    }
+    return drop;
   }
 
   /** Drops a press kept from while the bot was busy: the controls changed under it, as between the tutorial's lessons. */

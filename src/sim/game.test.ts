@@ -296,6 +296,46 @@ describe('gravity', () => {
     expect(game.lives).toBe(R.LIVES);
   });
 
+  it('warns only of what will reach the bot: not a wide piece landing on a block beside it, nor a coin', () => {
+    const lands = Game.fromRows([
+      '111......', //
+      '.........',
+      '..3......',
+      '.........',
+      '@........',
+      '333333333',
+    ]);
+    run(lands, 2);
+    expect(lands.bodies.size).toBeGreaterThan(0);
+    expect(lands.threat()).toBe(null);
+    const narrow = Game.fromRows([
+      '1........', //
+      '.........',
+      '..3......',
+      '.........',
+      '@........',
+      '333333333',
+    ]);
+    run(narrow, 2);
+    expect(narrow.threat()).toBe(0);
+    const coin = Game.fromRows(['$........', '.........', '.........', '@........', '333333333']);
+    run(coin, 2);
+    expect(coin.threat()).toBe(null);
+  });
+
+  it('jumps freely under a piece that will land before reaching it', () => {
+    const game = Game.fromRows([
+      '111......', //
+      '.........',
+      '..3......',
+      '.........',
+      '@........',
+      '333333333',
+    ]);
+    run(game, 2);
+    expect(run(game, 1, UP)).toContainEqual({ type: 'hop' });
+  });
+
   it('warns of a block coming down from out of sight, so the bot can step aside', () => {
     const rows = ['....1....', ...Array(10).fill('.........'), '....@....', '333333333'];
     const game = Game.fromRows(rows);

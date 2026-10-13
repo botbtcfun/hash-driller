@@ -231,7 +231,7 @@ export class PlayScene extends Phaser.Scene {
       .setAlpha(dead ? ((game.tick >> 3) & 1 ? 0.25 : 0.8) : bot.shield > 0 && (game.tick >> 2) & 1 ? 0.35 : 1);
     if (dead) this.botImg.setTint(0xff4d79);
     else this.botImg.clearTint();
-    this.warn(game, dead ? null : this.loose(game, bot.x, bot.y), bx, by);
+    this.warn(game, dead ? null : game.threat(), bx, by);
 
     if (bot.action === 'drill') {
       const [ox, oy] = STEP_OFFSET[bot.drillDir];
@@ -325,17 +325,6 @@ export class PlayScene extends Phaser.Scene {
         .setVisible(true);
     }
     for (; n < this.labels.length; n++) this.labels[n]!.setVisible(false);
-  }
-
-  /** The row of anything wobbling or falling above (x, y), before the first resting block. */
-  private loose(game: Game, x: number, y: number): number | null {
-    const g = game.grid;
-    for (let yy = y - 1; yy >= g.top; yy--) {
-      const body = game.bodies.get(g.bodyAt(x, yy));
-      if (body && body.state !== POP) return yy;
-      if (!body && g.kindAt(x, yy) !== 0) return null;
-    }
-    return null;
   }
 
   /** A blinking ! over the bot, and a dotted line from what's about to fall down to it. */
