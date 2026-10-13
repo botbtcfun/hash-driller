@@ -5,7 +5,8 @@
   "name": "botbtc-drill",
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-30",
-  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  // The trailer goes through the Worker, which answers byte ranges: iOS plays no video without them.
+  "assets": { "directory": "./dist", "binding": "ASSETS", "run_worker_first": ["/trailer.mp4"] },
   "d1_databases": [
     {
       "binding": "DB",
