@@ -15,6 +15,9 @@ Each level is a real [botBTC](https://botbtc.fun) block, and its # is the
 block's nonce. Made for Round 01 (games) of
 [Project Treetop](https://twigpine.com/treetop).
 
+[Watch the 36-second trailer](https://drill.botbtc.fun/trailer.mp4), or
+[play it](https://drill.botbtc.fun).
+
 ## Play
 
 The first time, a short tutorial teaches the moves on a mine made for it,
