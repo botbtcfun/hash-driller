@@ -297,6 +297,97 @@ body {
   gap: 8px;
 }
 
+/* The leaderboard: initials to save a run under, and the day's top ten. */
+#overlay .initials {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+#overlay .initials label {
+  width: 100%;
+  color: var(--dim);
+}
+
+/* 16 px at least, or iOS zooms in on it. */
+#overlay .initials input {
+  width: 5.2em;
+  padding: 8px 4px 8px 8px;
+  font-family: var(--pixel);
+  font-size: 16px;
+  letter-spacing: 4px;
+  text-align: center;
+  text-transform: uppercase;
+  color: var(--coin);
+  background: var(--bg);
+  border: 2px solid var(--base-hi);
+  outline: none;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
+#overlay .initials input:focus {
+  border-color: var(--coin);
+}
+
+#overlay .initials[data-note]::after {
+  content: attr(data-note);
+  width: 100%;
+  font-size: 8px;
+  color: var(--lose);
+}
+
+#overlay .board {
+  width: min(100%, 300px);
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+  font-family: var(--crt);
+  font-size: 20px;
+  line-height: 1.15;
+  text-align: left;
+}
+
+#overlay .board li {
+  display: grid;
+  grid-template-columns: 2em 3.2em 1fr 2.6em;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+#overlay .board li b {
+  font-weight: normal;
+  color: var(--ink);
+}
+
+#overlay .board li span:nth-child(3) {
+  text-align: right;
+  color: var(--coin);
+}
+
+#overlay .board li span:last-child {
+  text-align: right;
+  color: var(--dim);
+}
+
+#overlay .board li.me,
+#overlay .board li.me * {
+  color: var(--bg);
+  background: var(--coin);
+}
+
+#overlay .board-note {
+  margin-top: 6px;
+  font-size: 8px;
+  color: var(--dim);
+}
+
+#overlay .board-rank b {
+  color: var(--coin);
+}
+
 /* The tutorial's coach, over the top of the shaft. */
 #banner .coach {
   max-width: min(94%, 440px);

@@ -1,9 +1,21 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  // The game, as static files (`pnpm run deploy`): the Vite build in dist/.
+  // The game (`pnpm run deploy`): the Vite build in dist/, served as static
+  // files, and a Worker for the daily leaderboard under /api.
   "name": "botbtc-drill",
+  "main": "worker/index.ts",
   "compatibility_date": "2026-09-30",
-  "assets": { "directory": "./dist" },
+  "assets": { "directory": "./dist", "binding": "ASSETS" },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "hash-driller",
+      "database_id": "6d551160-f40a-4c9d-bd62-de60a470cbc2",
+      "migrations_dir": "migrations"
+    }
+  ],
+  // Scores from one connection at most this often. The address keys the limit only; it is never stored.
+  "ratelimits": [{ "name": "SCORE_LIMIT", "namespace_id": "1001", "simple": { "limit": 10, "period": 60 } }],
   // Served only on its custom domain: no workers.dev or preview addresses,
   // which carry the account's subdomain.
   "workers_dev": false,

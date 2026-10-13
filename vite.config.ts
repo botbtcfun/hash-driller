@@ -144,5 +144,7 @@ function loader(): Plugin {
 export default defineConfig({
   plugins: [bot(), icons(), loader()],
   build: { target: 'es2022', chunkSizeWarningLimit: 1600 },
-  test: { include: ['src/**/*.test.ts'] },
+  // In development, the leaderboard comes from `wrangler dev` (pnpm exec wrangler dev --port 8788 --local).
+  server: { proxy: { '/api': 'http://localhost:8788' } },
+  test: { include: ['src/**/*.test.ts', 'worker/**/*.test.ts'] },
 });

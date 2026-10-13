@@ -42,14 +42,34 @@ Android the ADD TO HOME SCREEN button asks the browser to install it; on iOS,
 where only the share sheet can, the button shows how. The icons are drawn
 from the bot's pixel grid by the build, like the favicon.
 
+## Leaderboard
+
+Everyone digs the same mine each UTC day, so each day has its own board.
+At game over you save a run under three initials, like an arcade machine;
+nothing else about you is kept. The game sends only the initials and the
+run's inputs, about a kilobyte a minute. The Worker in `worker/` replays
+them through the same simulation and keeps whatever the run comes to, so
+a score can't be made up. The same run sent twice is one entry, and one
+connection can send ten scores a minute. Scores live in a Cloudflare D1
+database, `migrations/` holds its schema, and the inputs are kept, so any
+run can be replayed again.
+
 ## Run it
 
 ```bash
 pnpm install
 pnpm dev        # http://localhost:5173
-pnpm test       # the simulation's tests
+pnpm test       # the simulation's and the leaderboard's tests
 pnpm balance    # plays thousands of runs headless and prints how they go
 pnpm build      # the static site, in dist/
+```
+
+For the leaderboard in development, run the Worker with a local database
+next to `pnpm dev`, which sends `/api` to it:
+
+```bash
+pnpm exec wrangler d1 migrations apply hash-driller --local
+pnpm build && pnpm exec wrangler dev --port 8788 --local
 ```
 
 ## How it's made
@@ -64,7 +84,8 @@ pnpm build      # the static site, in dist/
 - `src/audio`: music and sound effects synthesised in the browser with Web
   Audio; there are no audio files. The soundtrack is three stems in F minor at
   140 BPM, rendered at load, that come in as a run heats up.
-- `src/ui`: the side panel, banners and overlays.
+- `src/ui`: the side panel, banners, overlays and the leaderboard.
+- `worker`: the Cloudflare Worker serving the game and its leaderboard.
 
 ## Licence
 

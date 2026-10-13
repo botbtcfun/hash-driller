@@ -13,6 +13,7 @@ import { Mine } from './sim/layers';
 import { InputLog } from './sim/replay';
 import { VIEW_ABOVE, WIDTH } from './sim/rules';
 import { TUTORIAL_ROWS, Tutorial } from './sim/tutorial';
+import { initialsForm, showBoard, submit } from './ui/board';
 import { Coach } from './ui/coach';
 import { Hud, isTouch } from './ui/hud';
 import { Install } from './ui/install';
@@ -120,7 +121,10 @@ class Run implements Session {
     sound.events(events);
     if (!this.game.over) return;
     if (this.tutorial) hud.overlay(`<h2>OUT OF LIVES</h2><p>${tap()} TO TRY AGAIN</p><p><button type="button" data-act="skip">SKIP THE TUTORIAL</button></p>`);
-    else hud.gameOver(this.game, install.button());
+    else {
+      hud.gameOver(this.game, initialsForm() + install.button());
+      void showBoard(day);
+    }
   }
 
   onFrame(): void {
@@ -420,7 +424,15 @@ function intro(): void {
 <p class="how">Dig down level by level,<br>and mine each level's golden ${nonce}.</p>
 <p class="how dim">Each level is a real botBTC block,<br>and its ${nonce} is the block's nonce.</p>
 <p class="blink">${tap()} TO START</p>
-${first ? '<p class="how dim">A short, slow tutorial comes first.</p>' : `<p class="more"><button type="button" data-act="tutorial">HOW TO PLAY</button>${install.button()}</p>`}`);
+${first ? '<p class="how dim">A short, slow tutorial comes first.</p>' : `<p class="more"><button type="button" data-act="tutorial">HOW TO PLAY</button><button type="button" data-act="board">LEADERBOARD</button>${install.button()}</p>`}`);
+}
+
+/** Today's leaderboard, from the start screen. */
+function leaderboard(): void {
+  hud.overlay(`<h2>TODAY'S BEST</h2>
+<div id="board-slot"></div>
+<p class="more"><button type="button" data-act="back">BACK</button></p>`);
+  void showBoard(day);
 }
 intro();
 // The game is up: the loading screen goes, and the music renders while the intro is read.
@@ -428,6 +440,8 @@ document.getElementById('loading')?.remove();
 setTimeout(() => void sound.prepare(), 300);
 
 window.addEventListener('keydown', (e) => {
+  // Typing initials is not playing.
+  if (e.target instanceof HTMLInputElement) return;
   if (!run.started || run.graduated) {
     if (e.metaKey || e.ctrlKey || e.altKey || !START_KEYS.has(e.code)) return;
     if (run.graduated) run.begin(false);
@@ -441,13 +455,21 @@ window.addEventListener('keydown', (e) => {
 // A click, not a pointerdown: on phones only the end of a tap may start sound.
 document.getElementById('overlay')!.addEventListener('click', (e) => {
   const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
-  if (act === 'tutorial') run.begin(true);
+  // The initials form and the board take their own taps.
+  if (!act && (e.target as Element).closest('form, #board-slot')) return;
+  if (act === 'board') leaderboard();
+  else if (act === 'back') intro();
+  else if (act === 'tutorial') run.begin(true);
   else if (act === 'skip') run.skip();
   else if (act === 'install') void install.ask();
   else if (!run.started) run.start();
   else if (run.graduated) run.begin(false);
   else if (run.game.over) run.restart();
   else if (run.pausedByUser) run.togglePause();
+});
+document.getElementById('overlay')!.addEventListener('submit', (e) => {
+  e.preventDefault();
+  void submit(e.target as HTMLFormElement, day, run.log.encode());
 });
 // Phones can suspend sound, after a call for instance; any tap resumes it.
 document.addEventListener('pointerup', () => {

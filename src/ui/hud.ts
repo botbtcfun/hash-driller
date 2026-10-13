@@ -104,10 +104,10 @@ export class Hud {
     el.innerHTML = html ?? '';
   }
 
-  /** The last screen of a run; `more` goes under it, such as the home screen button. */
+  /** The last screen of a run; `more` goes under the score, such as the leaderboard. */
   gameOver(game: Game, more = ''): void {
     this.overlay(
-      `<h2>GAME OVER</h2><p><span class="coin">${sats(game.sats)} SATS</span><br>${game.mined} OF ${game.mined + game.missed} LEVELS MINED<br>LONGEST CHAIN ${game.maxChain} · ${game.depth} m</p><p>${isTouch() ? 'TAP TO PLAY AGAIN' : 'PRESS R OR TAP'}</p>${more}`,
+      `<h2>GAME OVER</h2><p><span class="coin">${sats(game.sats)} SATS</span><br>${game.mined} OF ${game.mined + game.missed} LEVELS MINED<br>LONGEST CHAIN ${game.maxChain} · ${game.depth} m</p>${more}<p>${isTouch() ? 'TAP TO PLAY AGAIN' : 'PRESS ENTER TO PLAY AGAIN'}</p>`,
     );
   }
 }

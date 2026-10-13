@@ -26,7 +26,8 @@ export class Input {
   constructor(target: Window = window) {
     target.addEventListener('keydown', (e) => {
       const bit = KEYS[e.code];
-      if (!bit || e.metaKey || e.ctrlKey || e.altKey) return;
+      // Typing in a field, such as initials, moves nothing.
+      if (!bit || e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
       e.preventDefault();
       this.codes.set(e.code, bit);
       this.held |= bit;
