@@ -152,7 +152,14 @@ class Run implements Session {
   togglePause(): void {
     if (this.game.over || !this.started || this.graduated) return;
     this.pausedByUser = !this.pausedByUser;
-    hud.overlay(this.pausedByUser ? `<h2>PAUSED</h2><p>${isTouch() ? 'TAP TO PLAY' : 'P TO PLAY'}</p>${install.button()}` : null);
+    if (this.pausedByUser) this.pauseScreen();
+    else hud.overlay(null);
+  }
+
+  /** The pause screen: back to the run, or a look at the day's board, or a fresh start. */
+  pauseScreen(): void {
+    hud.overlay(`<h2>PAUSED</h2><p>${isTouch() ? 'TAP TO PLAY' : 'P TO PLAY'}</p>
+<p class="more"><button type="button" data-act="board">LEADERBOARD</button><button type="button" data-act="restart">RESTART</button>${install.button()}</p>`);
   }
 
   /** The tutorial's last screen: what's left to know, then today's mine. */
@@ -434,7 +441,11 @@ ${first ? '<p class="how dim">A short, slow tutorial comes first.</p>' : `<p cla
 }
 
 /** Today's leaderboard, from the start screen. */
-function leaderboard(): void {
+/** Where the leaderboard's BACK goes: the screen it was opened from. */
+let back = intro;
+
+function leaderboard(from: () => void): void {
+  back = from;
   hud.overlay(`<h2>TODAY'S BEST</h2>
 <div id="board-slot"></div>
 <p class="more"><button type="button" data-act="back">BACK</button></p>`);
@@ -463,8 +474,9 @@ document.getElementById('overlay')!.addEventListener('click', (e) => {
   const act = (e.target as Element).closest<HTMLElement>('[data-act]')?.dataset.act;
   // The initials form and the board take their own taps.
   if (!act && (e.target as Element).closest('form, #board-slot')) return;
-  if (act === 'board') leaderboard();
-  else if (act === 'back') intro();
+  if (act === 'board') leaderboard(run.pausedByUser ? () => run.pauseScreen() : intro);
+  else if (act === 'back') back();
+  else if (act === 'restart') run.restart();
   else if (act === 'tutorial') run.begin(true);
   else if (act === 'skip') run.skip();
   else if (act === 'install') void install.ask();
