@@ -372,10 +372,13 @@ body {
   color: var(--dim);
 }
 
-#overlay .board li.me,
-#overlay .board li.me * {
-  color: var(--bg);
+#overlay .board li.me {
   background: var(--coin);
+}
+
+/* Every column dark on the gold, the sats too: as specific as their own colors, and after them. */
+#overlay .board li.me :is(b, span) {
+  color: var(--bg);
 }
 
 #overlay .board-note {
