@@ -2,16 +2,14 @@ import '@fontsource/press-start-2p/latin-400.css';
 import '@fontsource/vt323/latin-400.css';
 import './ui/style.css';
 
-import Phaser from 'phaser';
-
 import { Sound } from './audio/sound';
 import { Input } from './render/input';
-import { MIN_VIEW_ROWS, PlayScene, type Session } from './render/scene';
-import { BG, TILE, icon } from './render/sprites';
+import { MIN_VIEW_ROWS, PlayScene, type Session, WIDTH_PX } from './render/scene';
+import { TILE, icon } from './render/sprites';
 import { Game, type GameEvent } from './sim/game';
 import { Mine } from './sim/layers';
 import { InputLog } from './sim/replay';
-import { VIEW_ABOVE, WIDTH } from './sim/rules';
+import { VIEW_ABOVE } from './sim/rules';
 import { TUTORIAL_ROWS, Tutorial } from './sim/tutorial';
 import { initialsForm, showBoard, submit } from './ui/board';
 import { Coach } from './ui/coach';
@@ -20,7 +18,6 @@ import { Install } from './ui/install';
 import { type Room, TouchControls } from './ui/touch';
 import { Updater } from './ui/update';
 
-const WIDTH_PX = WIDTH * TILE;
 const MIN_HEIGHT_PX = MIN_VIEW_ROWS * TILE;
 /** Tiles stop growing at 56 px, for tablets; landscape phones show at least LANDSCAPE_ROWS rows. */
 const MAX_TOUCH_ZOOM = 3.5;
@@ -190,19 +187,7 @@ const coarse = window.matchMedia('(pointer: coarse)').matches;
 document.body.classList.toggle('touch', coarse);
 orient();
 
-const size = fit();
-const game = new Phaser.Game({
-  type: Phaser.AUTO,
-  parent: 'game',
-  width: WIDTH_PX,
-  height: size.height,
-  pixelArt: true,
-  backgroundColor: BG,
-  banner: false,
-  audio: { noAudio: true },
-  scale: { mode: Phaser.Scale.NONE, zoom: size.zoom },
-  scene: [scene],
-});
+document.getElementById('game')!.append(scene.canvas);
 
 /**
  * The visible area in CSS pixels as if not pinch-zoomed: iOS shrinks
@@ -337,7 +322,7 @@ function insets(): void {
   const strip = portrait ? document.getElementById('strip')!.offsetHeight : 0;
   const pad = portrait ? Math.max(0, viewport().h - controls.reach()) : 0;
   document.documentElement.style.setProperty('--strip-h', `${strip}px`);
-  scene.setInsets(strip / game.scale.zoom, pad / game.scale.zoom, true);
+  scene.setInsets(strip / scene.zoom, pad / scene.zoom, true);
 }
 
 /**
@@ -350,8 +335,7 @@ function layout(): void {
   const hud = document.getElementById('hud')!;
   hud.style.height = '';
   const { zoom, height } = fit();
-  game.scale.resize(WIDTH_PX, height);
-  game.scale.setZoom(zoom);
+  scene.resize(height, zoom);
   if (isTouch()) {
     controls.arrange(room(zoom));
     insets();
@@ -376,7 +360,7 @@ if (new URLSearchParams(window.location.search).has('debug')) {
       v ? `visual ${Math.round(v.width)}x${Math.round(v.height)} @${v.scale.toFixed(2)} top ${Math.round(v.offsetTop)}` : 'visual -',
       `screen ${window.screen.width}x${window.screen.height} dpr ${window.devicePixelRatio}`,
       `safe t${s.top} r${s.right} b${s.bottom} l${s.left} bar ${barCover()}`,
-      `zoom ${game.scale.zoom.toFixed(2)} game ${WIDTH_PX}x${game.scale.height}`,
+      `zoom ${scene.zoom.toFixed(2)} game ${WIDTH_PX}x${scene.height}`,
       `dpad top ${Math.round(keys.top)} bottom ${Math.round(keys.bottom)}`,
       document.body.className,
     ].join('\n');
@@ -394,7 +378,6 @@ const relayout = () => {
 };
 window.addEventListener('resize', relayout);
 window.visualViewport?.addEventListener('resize', relayout);
-game.events.once('ready', layout);
 
 // No page zoom while playing: iOS ignores the viewport's user-scalable=no, so
 // cancel its pinch gestures, double-tap zoom, and two-finger moves directly.
@@ -454,6 +437,9 @@ function leaderboard(from: () => void): void {
 intro();
 // The game is up: the loading screen goes, and the music renders while the intro is read.
 document.getElementById('loading')?.remove();
+// Sized once the loading box is gone, which shares the stage with it until now.
+layout();
+scene.start();
 setTimeout(() => void sound.prepare(), 300);
 
 window.addEventListener('keydown', (e) => {
@@ -495,4 +481,4 @@ document.addEventListener('pointerup', () => {
 });
 
 // For checking the game from the browser console while developing.
-if (import.meta.env.DEV) Object.assign(window, { drill: run, sound, phaser: game });
+if (import.meta.env.DEV) Object.assign(window, { drill: run, sound, view: scene });

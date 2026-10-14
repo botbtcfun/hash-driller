@@ -81,9 +81,9 @@ pnpm build && pnpm exec wrangler dev --port 8788 --local
   runs on a fixed 60 Hz tick with integer arithmetic and a seeded generator,
   so the same mine and the same inputs give the same run on any device. A run
   is its input log.
-- `src/render`: drawing with [Phaser](https://phaser.io). Every sprite is
-  a pixel grid in code, drawn into a texture at startup; there are no image
-  files.
+- `src/render`: drawing on a plain canvas, with no game engine. Every sprite
+  is a pixel grid in code, drawn into a canvas of its own at startup; there
+  are no image files.
 - `src/audio`: music and sound effects synthesised in the browser with Web
   Audio; there are no audio files. The soundtrack is three stems in F minor at
   140 BPM, rendered at load, that come in as a run heats up.

@@ -1,5 +1,3 @@
-import type Phaser from 'phaser';
-
 import bot from '../art/bot.json';
 
 export const TILE = 16;
@@ -11,7 +9,7 @@ export const BLOCK_COLORS: [string, string, string][] = [
   ['#ff4d79', '#ff9db4', '#a3193f'],
   ['#9b5cff', '#c9a6ff', '#5a24b3'],
 ];
-export const PARTICLE_COLORS = BLOCK_COLORS.map(([base]) => parseInt(base.slice(1), 16));
+export const PARTICLE_COLORS = BLOCK_COLORS.map(([base]) => base);
 
 const OUTLINE = '#00081c';
 export const BG = '#000c26';
@@ -66,10 +64,15 @@ const GLOW_RINGS: [radius: number, alpha: number][] = [
 
 type Ctx = CanvasRenderingContext2D;
 
-function canvas(scene: Phaser.Scene, key: string, w: number, h: number, draw: (ctx: Ctx) => void): void {
-  const tex = scene.textures.createCanvas(key, w, h)!;
-  draw(tex.getContext());
-  tex.refresh();
+/** The game's sprites by name, each drawn once into a canvas of its own. */
+export type Textures = Map<string, HTMLCanvasElement>;
+
+function canvas(textures: Textures, key: string, w: number, h: number, draw: (ctx: Ctx) => void): void {
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  draw(c.getContext('2d')!);
+  textures.set(key, c);
 }
 
 function grid(ctx: Ctx, rows: string[], palette: Record<string, string>, ox = 0, oy = 0): void {
@@ -268,17 +271,18 @@ export function icon(name: keyof typeof ICONS, alt: string): string {
   return `<img class="sprite" src="${url}" alt="${alt}" />`;
 }
 
-export function makeTextures(scene: Phaser.Scene): void {
+export function makeTextures(): Textures {
+  const textures: Textures = new Map();
   for (let c = 0; c < BLOCK_COLORS.length; c++) {
-    for (let mask = 0; mask < 16; mask++) canvas(scene, `block${c}_${mask}`, TILE, TILE, (ctx) => block(ctx, c, mask));
+    for (let mask = 0; mask < 16; mask++) canvas(textures, `block${c}_${mask}`, TILE, TILE, (ctx) => block(ctx, c, mask));
   }
 
-  for (let hits = 0; hits < CRACKS.length; hits++) canvas(scene, `rock${hits}`, TILE, TILE, (ctx) => rock(ctx, hits));
-  canvas(scene, 'steel', TILE, TILE, steel);
-  canvas(scene, 'stone', TILE, TILE, stone);
-  for (const frame of [0, 1, 2]) canvas(scene, `bomb${frame}`, TILE, TILE, (ctx) => bomb(ctx, frame));
+  for (let hits = 0; hits < CRACKS.length; hits++) canvas(textures, `rock${hits}`, TILE, TILE, (ctx) => rock(ctx, hits));
+  canvas(textures, 'steel', TILE, TILE, steel);
+  canvas(textures, 'stone', TILE, TILE, stone);
+  for (const frame of [0, 1, 2]) canvas(textures, `bomb${frame}`, TILE, TILE, (ctx) => bomb(ctx, frame));
 
-  canvas(scene, 'header', TILE, TILE, (ctx) => {
+  canvas(textures, 'header', TILE, TILE, (ctx) => {
     ctx.fillStyle = OUTLINE;
     ctx.fillRect(0, 0, TILE, TILE);
     ctx.fillStyle = '#06246b';
@@ -289,12 +293,12 @@ export function makeTextures(scene: Phaser.Scene): void {
     ctx.fillRect(0, TILE - 3, TILE, 1);
   });
 
-  for (const frame of [0, 1, 2, 3]) canvas(scene, `nonce${frame}`, TILE, TILE, (ctx) => nonce(ctx, frame));
-  for (const frame of [0, 1]) canvas(scene, `fee${frame}`, TILE, TILE, (ctx) => fee(ctx, frame));
-  canvas(scene, 'arrow', 7, 4, (ctx) => grid(ctx, ARROW, { '#': '#ffd60a' }));
-  canvas(scene, 'warn', 5, 9, (ctx) => grid(ctx, WARN, { '#': '#ff4d79' }));
-  canvas(scene, 'star', 7, 7, (ctx) => grid(ctx, STAR, { '#': '#ffe066', W: '#ffffff' }));
-  canvas(scene, 'glow', GLOW_SIZE, GLOW_SIZE, (ctx) => {
+  for (const frame of [0, 1, 2, 3]) canvas(textures, `nonce${frame}`, TILE, TILE, (ctx) => nonce(ctx, frame));
+  for (const frame of [0, 1]) canvas(textures, `fee${frame}`, TILE, TILE, (ctx) => fee(ctx, frame));
+  canvas(textures, 'arrow', 7, 4, (ctx) => grid(ctx, ARROW, { '#': '#ffd60a' }));
+  canvas(textures, 'warn', 5, 9, (ctx) => grid(ctx, WARN, { '#': '#ff4d79' }));
+  canvas(textures, 'star', 7, 7, (ctx) => grid(ctx, STAR, { '#': '#ffe066', W: '#ffffff' }));
+  canvas(textures, 'glow', GLOW_SIZE, GLOW_SIZE, (ctx) => {
     const c = GLOW_SIZE / 2;
     for (const [r, a] of GLOW_RINGS) {
       ctx.fillStyle = `rgba(255, 214, 10, ${a})`;
@@ -304,10 +308,16 @@ export function makeTextures(scene: Phaser.Scene): void {
     }
   });
 
-  canvas(scene, 'bot', TILE, TILE, (ctx) => grid(ctx, bot.rows, bot.palette as Record<string, string>));
-  canvas(scene, 'drill', 5, 5, (ctx) => grid(ctx, DRILL, { '#': '#c9d3e8' }));
-  canvas(scene, 'px', 2, 2, (ctx) => {
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, 2, 2);
+  canvas(textures, 'bot', TILE, TILE, (ctx) => grid(ctx, bot.rows, bot.palette as Record<string, string>));
+  canvas(textures, 'drill', 5, 5, (ctx) => grid(ctx, DRILL, { '#': '#c9d3e8' }));
+  canvas(textures, 'bg', 32, 32, (ctx) => {
+    ctx.fillStyle = BG;
+    ctx.fillRect(0, 0, 32, 32);
+    ctx.fillStyle = '#001238';
+    ctx.fillRect(0, 31, 32, 1);
+    ctx.fillRect(15, 15, 1, 16);
+    ctx.fillRect(0, 15, 32, 1);
+    ctx.fillRect(31, 0, 1, 15);
   });
+  return textures;
 }
