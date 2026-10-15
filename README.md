@@ -16,7 +16,9 @@ block's nonce. Made for Round 01 (games) of
 [Project Treetop](https://twigpine.com/treetop).
 
 [Watch the 36-second trailer](https://drill.botbtc.fun/trailer.mp4), or
-[play it](https://drill.botbtc.fun).
+[play it](https://drill.botbtc.fun). The whole game also fits in
+[one link](https://drill.botbtc.fun/copy): a `data:` URL that plays from the
+address bar, with no server but the leaderboard's.
 
 ## Play
 

@@ -1,4 +1,5 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { deflateSync } from 'node:zlib';
 
 import type { Plugin } from 'vite';
@@ -131,9 +132,11 @@ function loader(): Plugin {
     transformIndexHtml: {
       order: 'post',
       handler(html, ctx) {
+        // The game's page only: /copy loads its script itself.
+        if (!html.includes('<script src="/loader.js"></script>')) return html;
         const tag = /\s*<script type="module" crossorigin src="([^"]+)"><\/script>/.exec(html);
-        const entry = Object.values(ctx.bundle ?? {}).find((c) => c.type === 'chunk' && c.isEntry);
-        if (!tag || !entry || entry.type !== 'chunk') throw new Error('drill-loader: no entry script to hand over');
+        const entry = ctx.chunk;
+        if (!tag || !entry) throw new Error('drill-loader: no entry script to hand over');
         const size = Buffer.byteLength(entry.code);
         return html.replace(tag[0], '').replace('<script src="/loader.js"></script>', `<script src="/loader.js" data-main="${tag[1]}" data-size="${size}"></script>`);
       },
@@ -141,9 +144,60 @@ function loader(): Plugin {
   };
 }
 
+/**
+ * Packs the built game into one HTML file with nothing to fetch, its script,
+ * styles and fonts inline, and writes that out as a data: URL to
+ * data-url.txt, which /copy hands out: pasted into an address bar, the game
+ * plays with no server. Only the leaderboard is still called, by its address.
+ */
+function onefile(): Plugin {
+  let dist = '';
+  return {
+    name: 'drill-onefile',
+    apply: 'build',
+    configResolved(config) {
+      dist = resolve(config.root, config.build.outDir);
+    },
+    closeBundle() {
+      const read = (path: string) => readFileSync(join(dist, path), 'utf8');
+      let html = read('index.html');
+      const once = (from: string | RegExp, to: string) => {
+        const before = html;
+        html = html.replace(from, () => to);
+        if (html === before) throw new Error(`drill-onefile: no ${from} in index.html`);
+      };
+      // Styles inline, each font as woff2 only, inline too.
+      html = html.replace(/<link rel="stylesheet" crossorigin href="(\/assets\/[^"]+\.css)">/g, (_, href: string) => {
+        const css = read(href).replace(/src:url\((\/assets\/[^)]+\.woff2)\) format\("woff2"\),url\([^)]+\.woff\) format\("woff"\)/g, (_m, woff2: string) => {
+          return `src:url(data:font/woff2;base64,${readFileSync(join(dist, woff2)).toString('base64')}) format("woff2")`;
+        });
+        return `<style>${css}</style>`;
+      });
+      // No app manifest, home screen icon or link previews: nothing to fetch, nothing to share from a data: URL.
+      once(/ *<link rel="manifest"[^>]*>\n/, '');
+      once(/ *<link rel="apple-touch-icon"[^>]*>\n/, '');
+      html = html.replace(/ *<meta (property="og:|name="twitter:)[^>]*>\n/g, '');
+      // The loader, with no script to fetch, still lays the page out; then the game, inline.
+      const tag = /<script src="\/loader\.js" data-main="(\/assets\/[^"]+\.js)" data-size="\d+"><\/script>/.exec(html);
+      if (!tag) throw new Error('drill-onefile: no loader tag in index.html');
+      const scripts = [read('loader.js'), read(tag[1]!)];
+      if (scripts.some((js) => /<\/script|<!--/i.test(js))) throw new Error('drill-onefile: a script would end its tag early');
+      once(tag[0], `<script>${scripts[0]}</script>\n    <script type="module">${scripts[1]}</script>`);
+      if (/["(]\/assets\//.test(html)) throw new Error('drill-onefile: a file is still fetched');
+      writeFileSync(join(dist, 'data-url.txt'), `data:text/html;base64,${Buffer.from(html).toString('base64')}`);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [bot(), icons(), loader()],
-  build: { target: 'es2022', chunkSizeWarningLimit: 1600 },
+  plugins: [bot(), icons(), loader(), onefile()],
+  build: {
+    target: 'es2022',
+    chunkSizeWarningLimit: 1600,
+    rollupOptions: { input: { index: resolve(import.meta.dirname, 'index.html'), copy: resolve(import.meta.dirname, 'copy.html') } },
+    // Nothing is loaded on demand; and shared between the pages, the polyfill would become a file of its own.
+    modulePreload: { polyfill: false },
+  },
   // In development, the leaderboard comes from `wrangler dev` (pnpm exec wrangler dev --port 8788 --local).
   server: { proxy: { '/api': 'http://localhost:8788' } },
   test: { include: ['src/**/*.test.ts', 'worker/**/*.test.ts'] },

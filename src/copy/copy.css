@@ -1,0 +1,66 @@
+@import '@fontsource/press-start-2p/latin-400.css';
+@import '@fontsource/vt323/latin-400.css';
+
+/* /copy, in the game's colours and fonts: night blue, gold, pixels. */
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: #00081c;
+  color: #eaf1ff;
+  font-family: 'VT323', 'Courier New', monospace;
+  font-size: 22px;
+  -webkit-font-smoothing: none;
+}
+
+.copy {
+  max-width: 24em;
+  padding: 24px 16px;
+  text-align: center;
+}
+
+.copy svg {
+  width: 64px;
+  height: 64px;
+}
+
+h1 {
+  margin: 16px 0 20px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 16px;
+  font-weight: normal;
+  line-height: 1.7;
+  color: #ffd60a;
+}
+
+code {
+  font-family: inherit;
+  color: #ffd60a;
+}
+
+button {
+  padding: 14px 18px;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  color: #00081c;
+  background: #ffd60a;
+  border: 0;
+  box-shadow: inset -3px -3px 0 #b88a00;
+  cursor: pointer;
+}
+
+button:disabled {
+  color: #8fa6d9;
+  background: #031a52;
+  box-shadow: inset -3px -3px 0 #00081c;
+  cursor: default;
+}
+
+.dim {
+  color: #8fa6d9;
+}
+
+a {
+  color: #4d8bff;
+}
