@@ -149,6 +149,9 @@ function loader(): Plugin {
  * styles and fonts inline, and writes that out as a data: URL to
  * data-url.txt, which /copy hands out: pasted into an address bar, the game
  * plays with no server. Only the leaderboard is still called, by its address.
+ * The page itself goes to hash-driller.html, which the contract stores on
+ * chain (contracts/); it isn't served, as the site's rules would block its
+ * inline script.
  */
 function onefile(): Plugin {
   let dist = '';
@@ -184,6 +187,7 @@ function onefile(): Plugin {
       if (scripts.some((js) => /<\/script|<!--/i.test(js))) throw new Error('drill-onefile: a script would end its tag early');
       once(tag[0], `<script>${scripts[0]}</script>\n    <script type="module">${scripts[1]}</script>`);
       if (/["(]\/assets\//.test(html)) throw new Error('drill-onefile: a file is still fetched');
+      writeFileSync(join(dist, 'hash-driller.html'), html);
       writeFileSync(join(dist, 'data-url.txt'), `data:text/html;base64,${Buffer.from(html).toString('base64')}`);
     },
   };

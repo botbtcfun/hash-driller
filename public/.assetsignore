@@ -1,0 +1,2 @@
+# Built for the contract to store on chain, not for the site (see onefile() in vite.config.ts).
+hash-driller.html

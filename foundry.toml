@@ -1,0 +1,13 @@
+# The game's contract (contracts/): Hash Driller stored on Base, page and all.
+# Build the game first (pnpm build): the test and the deploy read dist/.
+[profile.default]
+src = "contracts"
+test = "contracts/test"
+script = "contracts/script"
+out = "out"
+libs = []
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 200
+fs_permissions = [{ access = "read", path = "./dist" }]

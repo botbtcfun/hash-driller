@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# Foundry's build output and deploy records
+out/
+cache/
+broadcast/
 .wrangler/
 .dev.vars
 *.tsbuildinfo
