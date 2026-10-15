@@ -18,7 +18,8 @@ block's nonce. Made for Round 01 (games) of
 [Watch the 36-second trailer](https://drill.botbtc.fun/trailer.mp4), or
 [play it](https://drill.botbtc.fun). The whole game also fits in
 [one link](https://drill.botbtc.fun/copy): a `data:` URL that plays from the
-address bar, with no server but the leaderboard's.
+address bar, with no server but the leaderboard's. And it is stored, whole, on
+Base: see [On Base](#on-base).
 
 ## Play
 
@@ -91,6 +92,24 @@ pnpm build && pnpm exec wrangler dev --port 8788 --local
   140 BPM, rendered at load, that come in as a run heats up.
 - `src/ui`: the side panel, banners, overlays and the leaderboard.
 - `worker`: the Cloudflare Worker serving the game and its leaderboard.
+- `contracts`: the contract that stores the game on Base.
+
+## On Base
+
+The whole game lives on Base, in the contract
+[`0xc043E3d6ebe3977767d7430205Db348dD3432283`](https://basescan.org/address/0xc043E3d6ebe3977767d7430205Db348dD3432283#readContract).
+To play it from there, open Read Contract on Basescan, then `play`, copy the
+result with its copy button, and paste it into your browser's address bar.
+
+- `play()` returns the game as one `data:` URL; `html()` returns the page.
+- The page is spread over seven contracts' code, `chunks(0)` to `chunks(6)`,
+  each behind a STOP byte so it can never run.
+- There is no owner and nothing to call that changes anything: the game stays
+  as it was deployed.
+
+`forge test` stores the built page (`pnpm build` first) and checks that
+`play()` gives back exactly `dist/data-url.txt`. `contracts/script/Deploy.s.sol`
+deploys it.
 
 ## Licence
 
