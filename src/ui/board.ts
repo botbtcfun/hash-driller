@@ -16,6 +16,12 @@ interface Board {
 }
 
 const INITIALS_KEY = 'hash-driller:initials';
+const OUT_OF_REACH = 'the leaderboard is out of reach';
+/**
+ * Where the leaderboard is: this site, or the game's own site for a page
+ * with no address to call from, as a copy opened from a file or a data: URL.
+ */
+const API = location.origin.startsWith('http') ? '' : 'https://drill.botbtc.fun';
 const sats = (n: number) => n.toLocaleString('en-US');
 
 function lastInitials(): string {
@@ -27,9 +33,15 @@ function lastInitials(): string {
 }
 
 async function call(path: string, init?: RequestInit): Promise<Board> {
-  const res = await fetch(path, init);
+  let res: Response;
+  try {
+    res = await fetch(API + path, init);
+  } catch {
+    // Offline or blocked: the browser's own words for it mean nothing to a player.
+    throw new Error(OUT_OF_REACH);
+  }
   const body = (await res.json().catch(() => ({}))) as Board & { error?: string };
-  if (!res.ok) throw new Error(body.error ?? 'the leaderboard is out of reach');
+  if (!res.ok) throw new Error(body.error ?? OUT_OF_REACH);
   return body;
 }
 

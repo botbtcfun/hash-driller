@@ -22,14 +22,28 @@ interface Env {
 /** The board shows this many. */
 const TOP = 10;
 
+/**
+ * The leaderboard answers any page, so a copy of the game opened from a file
+ * or a data: URL can use it too. Nothing comes with credentials, and every
+ * score is checked by replaying it, wherever it is sent from.
+ */
+const CORS = { 'access-control-allow-origin': '*' };
+
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store' } });
+  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', 'cache-control': 'no-store', ...CORS } });
 
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
     if (url.pathname === '/api/board' && req.method === 'GET') return board(env, Number(url.searchParams.get('day')) || dayOf(Date.now()));
     if (url.pathname === '/api/score' && req.method === 'POST') return score(req, env);
+    // A score is sent as JSON, which browsers ask leave for first from another page.
+    if (url.pathname.startsWith('/api/') && req.method === 'OPTIONS') {
+      return new Response(null, {
+        status: 204,
+        headers: { ...CORS, 'access-control-allow-methods': 'GET, POST', 'access-control-allow-headers': 'content-type', 'access-control-max-age': '86400' },
+      });
+    }
     if (url.pathname.startsWith('/api/')) return json({ error: 'not found' }, 404);
     if (url.pathname === '/trailer.mp4') return ranged(req, await env.ASSETS.fetch(req));
     return env.ASSETS.fetch(req);
